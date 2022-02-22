@@ -1,0 +1,32 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <value>
+          <list size="19">
+            <item index="0" class="java.lang.String" itemvalue="pathos" />
+            <item index="1" class="java.lang.String" itemvalue="pytest" />
+            <item index="2" class="java.lang.String" itemvalue="scikit-learn" />
+            <item index="3" class="java.lang.String" itemvalue="SQLAlchemy" />
+            <item index="4" class="java.lang.String" itemvalue="psycopg2" />
+            <item index="5" class="java.lang.String" itemvalue="python-dotenv" />
+            <item index="6" class="java.lang.String" itemvalue="numpy" />
+            <item index="7" class="java.lang.String" itemvalue="requests" />
+            <item index="8" class="java.lang.String" itemvalue="pathlib2" />
+            <item index="9" class="java.lang.String" itemvalue="pandas" />
+            <item index="10" class="java.lang.String" itemvalue="boto3" />
+            <item index="11" class="java.lang.String" itemvalue="prefect" />
+            <item index="12" class="java.lang.String" itemvalue="regex" />
+            <item index="13" class="java.lang.String" itemvalue="pytest-pgsql" />
+            <item index="14" class="java.lang.String" itemvalue="slackclient" />
+            <item index="15" class="java.lang.String" itemvalue="colorama" />
+            <item index="16" class="java.lang.String" itemvalue="bleach" />
+            <item index="17" class="java.lang.String" itemvalue="typing" />
+            <item index="18" class="java.lang.String" itemvalue="hypothesis" />
+          </list>
+        </value>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
