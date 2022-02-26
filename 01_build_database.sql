@@ -67,17 +67,42 @@ create table question_services_provided
 alter table question_services_provided
     owner to bendoremus;
 
-create table rank_definition
+create table question
 (
-    question_id      smallint,
-    rank             smallint,
-    rank_description text
+    question_id   smallint,
+    question_text text
 );
 
-alter table rank_definition
+alter table question
     owner to bendoremus;
 
-INSERT INTO rank_definition (question_id, rank, rank_description)
+INSERT INTO question (question_id, question_text)
+VALUES (1, 'How many years have you had a child at Golden View Classical Academy?  The current academic year counts as 1.'),
+       (2, 'Did you or one of your children attend conferences this year?'),
+       (3, 'Given your children''s education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?'),
+       (4, 'How satisfied are you with the education that your children have received at Golden View Classical Academy this year?'),
+       (5, 'GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How strongly is the school culture influenced by those virtues?'),
+       (6, 'How effective is the communication between your family and your childrens'' teachers?'),
+       (7, 'How effective is the communication between your family and the school leadership?'),
+       (8, 'How welcoming is the school community?'),
+       (9, 'Given this year''s challenges, what are your thoughts on the following aspects of the school environment?'),
+       (10, 'What makes GVCA a good choice for you and your family?'),
+       (11, 'Please provide us with examples of how GVCA can better serve you and your family.'),
+       (12, 'What services have your children received at Golden View this school year? Please check all that apply.'),
+       (13, 'Do you consider yourself or your children part of a racial, ethnic, or cultural minority group?')
+;
+
+create table response_definition
+(
+    question_id          smallint,
+    response             smallint,
+    response_description text
+);
+
+alter table response_definition
+    owner to bendoremus;
+
+INSERT INTO response_definition (question_id, response, response_description)
 VALUES (3, 4, 'Extremely Satisfied'),
        (3, 3, 'Satisfied'),
        (3, 2, 'Somewhat Satisfied'),

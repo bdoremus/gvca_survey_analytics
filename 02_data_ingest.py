@@ -1,11 +1,10 @@
-import pandas as pd
-
 from csv import reader as csv_reader
 from sqlalchemy import create_engine, text
 from pprint import pprint
 
-INPUT_FILEPATH = '/Users/bendoremus/Downloads/2022 Parent Satisfaction Survey (partial results).csv'
+INPUT_FILEPATH = '/Users/bendoremus/Downloads/2022 Parent Satisfaction Survey.csv'
 DATABASE_SCHEMA = 'sac_survey_2022'
+DATABASE_CONNECTION_STRING = 'postgresql://bendoremus:@localhost:5432/gvca'
 
 
 def inspect_file():
@@ -30,19 +29,38 @@ def inspect_file():
     pprint(questions)
 
 
+def validate_header(header, sub_header):
+    assert header[0] == 'Respondent ID'
+    assert header[2] == 'Start Date'
+    assert header[3] == 'End Date'
+    assert header[9] == 'How many years have you had a child at Golden View Classical Academy?  The current academic year counts as 1.'
+    assert header[10] == 'Did you or one of your children attend conferences this year?'
+    assert header[12] == 'Given your children’s education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?'
+    assert header[14] == 'How satisfied are you with the education that your children have received at Golden View Classical Academy this year?'
+    assert header[16] == 'GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How strongly is the school culture influenced by those virtues?'
+    assert header[18] == "How effective is the communication between your family and your childrens' teachers?"
+    assert header[20] == 'How effective is the communication between your family and the school leadership?'
+    assert header[21] == 'How welcoming is the school community?'
+    assert header[23] == "Given this year's challenges, what are your thoughts on the following aspects of the school environment?"
+    assert header[27] == "What makes GVCA a good choice for you and your family?"
+    assert header[30] == 'Please provide us with examples of how GVCA can better serve you and your family.'
+    assert header[33] == 'What services have your children received at Golden View this school year? Please check all that apply.'
+    assert header[52] == 'Do you consider yourself or your children part of a racial, ethnic, or cultural minority group?'
+
+
 def main():
     """
     Insert rows of data into the database.  Tables must already exist.
 
     :return:
     """
-    eng = create_engine('postgresql://bendoremus:@localhost:5432/gvca')
+    eng = create_engine(DATABASE_CONNECTION_STRING)
     with open(INPUT_FILEPATH, 'r') as f_in, eng.connect() as conn:
         raw_data_reader = csv_reader(f_in)
 
-        # skip the first two rows of headers
-        raw_header = raw_data_reader.__next__()
-        raw_sub_header = raw_data_reader.__next__()
+        header = raw_header = raw_data_reader.__next__()
+        sub_header = raw_sub_header = raw_data_reader.__next__()
+        validate_header(header, sub_header)
 
         # database setup
         conn.execute('BEGIN TRANSACTION;')
@@ -62,7 +80,7 @@ def main():
                 collector_id=row[1],
                 start_datetime=row[2],
                 end_datetime=row[3],
-                tenure=convert_to_int(row[9]),
+                tenure=int(row[9]) if row[9] else None,
                 grammar_conferences=convert_to_bool(row[10]),
                 upper_conferences=convert_to_bool(row[11]),
                 grammar_support=any(row[33:51:2]), # student services questions alternate between grammar/upper responses
@@ -75,7 +93,7 @@ def main():
             # Given your children’s education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?
             insert_rank_responses_split_by_grammar_upper(
                 conn,
-                question_id='3',
+                question_id=3,
                 respondent_id=respondent_id,
                 grammar_response=convert_to_int(row[12]),
                 upper_response=convert_to_int(row[13]),
@@ -85,7 +103,7 @@ def main():
             # How satisfied are you with the education that your children have received at Golden View Classical Academy this year?
             insert_rank_responses_split_by_grammar_upper(
                 conn,
-                question_id='4',
+                question_id=4,
                 respondent_id=respondent_id,
                 grammar_response=convert_to_int(row[14]),
                 upper_response=convert_to_int(row[15]),
@@ -95,7 +113,7 @@ def main():
             # GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How strongly is the school culture influenced by those virtues?
             insert_rank_responses_split_by_grammar_upper(
                 conn,
-                question_id='5',
+                question_id=5,
                 respondent_id=respondent_id,
                 grammar_response=convert_to_int(row[16]),
                 upper_response=convert_to_int(row[17]),
@@ -105,7 +123,7 @@ def main():
             # How effective is the communication between your family and your childrens' teachers?
             insert_rank_responses_split_by_grammar_upper(
                 conn,
-                question_id='6',
+                question_id=6,
                 respondent_id=respondent_id,
                 grammar_response=convert_to_int(row[18]),
                 upper_response=convert_to_int(row[19]),
@@ -113,21 +131,22 @@ def main():
 
             # question 7:
             # How effective is the communication between your family and the school leadership?
-            add_to_table(
-                conn,
-                tablename='question_rank',
-                respondent_id=respondent_id,
-                question_id='7',
-                grammar=False,
-                upper=False,
-                response=convert_to_int(row[20]),
-            )
+            if len(row[20]) > 0:
+                add_to_table(
+                    conn,
+                    tablename='question_rank',
+                    respondent_id=respondent_id,
+                    question_id=7,
+                    grammar=False,
+                    upper=False,
+                    response=convert_to_int(row[20]),
+                )
 
             # question 8:
             # How welcoming is the school community?
             insert_rank_responses_split_by_grammar_upper(
                 conn,
-                question_id='8',
+                question_id=8,
                 respondent_id=respondent_id,
                 grammar_response=convert_to_int(row[21]),
                 upper_response=convert_to_int(row[22]),
@@ -144,7 +163,7 @@ def main():
                     'child': row[26],
                 },
                 respondent_id=respondent_id,
-                question_id='9',
+                question_id=9,
             )
 
             # question 10:
@@ -157,7 +176,7 @@ def main():
                     'upper': row[29],
                 },
                 respondent_id=respondent_id,
-                question_id='10',
+                question_id=10,
             )
 
             # question 11:
@@ -170,7 +189,7 @@ def main():
                     'upper': row[32],
                 },
                 respondent_id=respondent_id,
-                question_id='11',
+                question_id=11,
             )
 
             # question 12:
@@ -178,7 +197,7 @@ def main():
             add_services(
                 conn,
                 respondent_id=respondent_id,
-                question_id='12',
+                question_id=12,
                 grammar_services={
                     'Qualify for Economic Assistance': row[33],
                     'IEP and related services, including Resource Class, Psychological services, Speech/Lanugage services, and Occupational therapy services':
@@ -227,7 +246,7 @@ def add_to_table(conn, tablename: str, **kwargs) -> None:
     conn.execute(query, {**{'tablename': tablename}, **kwargs})
 
 
-def insert_rank_responses_split_by_grammar_upper(conn, question_id: int, grammar_response: str, upper_response:str,
+def insert_rank_responses_split_by_grammar_upper(conn, question_id: int, grammar_response: int, upper_response:int,
                                                  **kwargs) -> None:
     """
     "Rank" type questions have both a Grammar and an Upper answer, which may or may not be null.
@@ -283,7 +302,7 @@ def open_response_question(conn, sub_questions_and_responses: dict, **kwargs) ->
             )
 
 
-def add_services(conn, grammar_services: str, upper_services: str, other_description: str, **kwargs) -> None:
+def add_services(conn, grammar_services: dict, upper_services: dict, other_description: str, **kwargs) -> None:
     """
     There's a big long list of different student services with separate checkboxes for grammar and upper school.
     Separate each box which was checked (value is "Upper School" or "Grammar School") onto a separate row.
@@ -337,8 +356,9 @@ def convert_to_int(value):
         return 2
     if value.startswith('Not'):
         return 1
+    if len(value) == 0:
+        return None
     return 3
-
 
 if __name__ == '__main__':
     main()
