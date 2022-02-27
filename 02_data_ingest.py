@@ -29,7 +29,7 @@ def inspect_file():
     pprint(questions)
 
 
-def validate_header(header, sub_header):
+def validate_header(header):
     assert header[0] == 'Respondent ID'
     assert header[2] == 'Start Date'
     assert header[3] == 'End Date'
@@ -58,9 +58,9 @@ def main():
     with open(INPUT_FILEPATH, 'r') as f_in, eng.connect() as conn:
         raw_data_reader = csv_reader(f_in)
 
-        header = raw_header = raw_data_reader.__next__()
-        sub_header = raw_sub_header = raw_data_reader.__next__()
-        validate_header(header, sub_header)
+        header = raw_data_reader.__next__()
+        validate_header(header)
+        sub_header = raw_data_reader.__next__()
 
         # database setup
         conn.execute('BEGIN TRANSACTION;')
@@ -73,6 +73,9 @@ def main():
         for row in raw_data_reader:
             respondent_id = row[0]
             # Create the respondent, including demographic information
+            grammar_rank_questions = [convert_to_int(v) for v in row[12:20:2] + [row[21]] if v]
+            upper_rank_questions = [convert_to_int(v) for v in row[13:20:2] + [row[22]] if v]
+            all_rank_questions = grammar_rank_questions + upper_rank_questions
             add_to_table(
                 conn,
                 tablename='respondents',
@@ -83,10 +86,18 @@ def main():
                 tenure=int(row[9]) if row[9] else None,
                 grammar_conferences=convert_to_bool(row[10]),
                 upper_conferences=convert_to_bool(row[11]),
-                grammar_support=any(row[33:51:2]), # student services questions alternate between grammar/upper responses
+                # student services questions alternate rows between grammar/upper responses
+                grammar_support=any(row[33:51:2]),
                 upper_support=any(row[34:51:2]),
                 any_support=any(row[34:52]),
+                # TODO: Break out IEP and 504s for separate analytics
                 minority=convert_to_bool(row[52]),
+                grammar_avg=(sum(grammar_rank_questions) / len(grammar_rank_questions)
+                             if len(grammar_rank_questions) > 0 else None),
+                upper_avg=(sum(upper_rank_questions) / len(upper_rank_questions)
+                           if len(upper_rank_questions) > 0 else None),
+                overall_avg=(sum(all_rank_questions) / len(all_rank_questions)
+                             if len(all_rank_questions) > 0 else None),
             )
 
             # question 3:
@@ -246,7 +257,7 @@ def add_to_table(conn, tablename: str, **kwargs) -> None:
     conn.execute(query, {**{'tablename': tablename}, **kwargs})
 
 
-def insert_rank_responses_split_by_grammar_upper(conn, question_id: int, grammar_response: int, upper_response:int,
+def insert_rank_responses_split_by_grammar_upper(conn, question_id: int, grammar_response: int, upper_response: int,
                                                  **kwargs) -> None:
     """
     "Rank" type questions have both a Grammar and an Upper answer, which may or may not be null.
@@ -359,6 +370,7 @@ def convert_to_int(value):
     if len(value) == 0:
         return None
     return 3
+
 
 if __name__ == '__main__':
     main()
