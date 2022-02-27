@@ -14,7 +14,10 @@ create table respondents
     upper_conferences   boolean,
     grammar_support     boolean,
     upper_support       boolean,
-    any_support         boolean
+    any_support         boolean,
+    grammar_avg         float4,
+    upper_avg           float4,
+    overall_avg         float4
 );
 
 alter table respondents
@@ -132,4 +135,16 @@ VALUES (3, 4, 'Extremely Satisfied'),
        (8, 3, 'Welcoming'),
        (8, 2, 'Somewhat Welcoming'),
        (8, 1, 'Not Welcoming')
+;
+
+CREATE TABLE open_response_categories
+(
+    question_id smallint,
+    sub_question_id text,
+    respondent_id bigint,
+    grammar bool,
+    upper bool,
+    category text,
+    sentiment text
+)
 ;
