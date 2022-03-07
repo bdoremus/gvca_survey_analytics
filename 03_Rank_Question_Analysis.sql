@@ -19,7 +19,6 @@ WITH question_totals AS
                     count(0) FILTER ( WHERE tenure > 1)::numeric                          as not_first_year_family_total,
                     count(0) FILTER ( WHERE tenure <= 3)::numeric                         as third_or_less_year_family_total,
                     count(0) FILTER ( WHERE tenure > 3)::numeric                          as more_than_third_year_family_total
-
              FROM question_rank
                       LEFT JOIN
                   respondents using (respondent_id)
@@ -97,9 +96,10 @@ ORDER BY question_id, response
 /*
  Cleaner organization of open response questions
  */
-SELECT question_id,
-       question_text,
-       sub_question_id,
+SELECT
+--        question_id,
+--        question_text,
+--        sub_question_id,
        response,
        respondent_id,
        grammar_avg,
@@ -116,4 +116,6 @@ FROM question_open_response
          JOIN
      respondents using (respondent_id)
 WHERE lower(response) <> 'n/a'
+AND question_id = '9'
+AND sub_question_id = 'child'
 ;
