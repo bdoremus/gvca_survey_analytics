@@ -1,3 +1,4 @@
+CREATE SCHEMA IF NOT EXISTS sac_survey_2022;
 SET SCHEMA 'sac_survey_2022';
 
 create table respondents
@@ -20,64 +21,46 @@ create table respondents
     overall_avg         float4
 );
 
-alter table respondents
-    owner to bendoremus;
-
 create table question_rank
 (
     respondent_id bigint            not null
-        constraint question2_respondents_respondent_id_fk
-            references respondents,
+            references respondents(respondent_id),
     question_id   integer default 2 not null,
     grammar       boolean           not null,
     upper         boolean           not null,
     response      smallint,
-    constraint question2_pk
+    constraint question_rank_pk
         primary key (respondent_id, upper, grammar, question_id)
 );
-
-alter table question_rank
-    owner to bendoremus;
 
 create table question_open_response
 (
     respondent_id   bigint   not null
-        constraint open_response_question_respondents_respondent_id_fk
-            references respondents,
+            references respondents(respondent_id),
     question_id     smallint not null,
     sub_question_id text     not null,
     response        text,
-    constraint open_response_question_pk
+    constraint question_open_response_pk
         primary key (respondent_id, question_id, sub_question_id)
 );
-
-alter table question_open_response
-    owner to bendoremus;
 
 create table question_services_provided
 (
     respondent_id bigint  not null
-        constraint services_provided_respondents_respondent_id_fk
-            references respondents,
+            references respondents(respondent_id),
     question_id   integer not null,
     grammar       boolean not null,
     upper         boolean not null,
     service_name  text    not null,
-    constraint services_provided_pk
+    constraint question_services_provided_pk
         primary key (respondent_id, question_id, grammar, upper, service_name)
 );
 
-alter table question_services_provided
-    owner to bendoremus;
-
 create table question
 (
-    question_id   smallint,
+    question_id   smallint primary key,
     question_text text
 );
-
-alter table question
-    owner to bendoremus;
 
 INSERT INTO question (question_id, question_text)
 VALUES (1, 'How many years have you had a child at Golden View Classical Academy?  The current academic year counts as 1.'),
@@ -97,13 +80,12 @@ VALUES (1, 'How many years have you had a child at Golden View Classical Academy
 
 create table response_definition
 (
-    question_id          smallint,
+    question_id          smallint references question (question_id),
     response             smallint,
-    response_description text
+    response_description text,
+    constraint response_definition_pk
+        primary key (question_id, response)
 );
-
-alter table response_definition
-    owner to bendoremus;
 
 INSERT INTO response_definition (question_id, response, response_description)
 VALUES (3, 4, 'Extremely Satisfied'),
@@ -139,12 +121,14 @@ VALUES (3, 4, 'Extremely Satisfied'),
 
 CREATE TABLE open_response_categories
 (
-    question_id smallint,
+    question_id     smallint
+        references question (question_id),
     sub_question_id text,
-    respondent_id bigint,
-    grammar bool,
-    upper bool,
-    category text,
-    sentiment text
+    respondent_id   bigint
+        references respondents (respondent_id),
+    grammar         bool,
+    upper           bool,
+    category        text,
+    sentiment       text
 )
 ;
