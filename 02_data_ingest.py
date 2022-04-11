@@ -1,10 +1,24 @@
 from csv import reader as csv_reader
 from sqlalchemy import create_engine, text
 from pprint import pprint
+from dotenv import dotenv_values
 
-INPUT_FILEPATH = '/Users/bendoremus/Downloads/2022 Parent Satisfaction Survey.csv'
-DATABASE_SCHEMA = 'sac_survey_2022'
-DATABASE_CONNECTION_STRING = 'postgresql://bendoremus:@localhost:5432/gvca'
+
+env_vars = dotenv_values()
+INPUT_FILEPATH = env_vars.get('INPUT_FILEPATH')
+DATABASE_SCHEMA = env_vars.get('DATABASE_SCHEMA')
+DATABASE_CONNECTION_STRING = env_vars.get('DATABASE_CONNECTION_STRING')
+
+
+def check_env_vars():
+    assert INPUT_FILEPATH, ('The env var INPUT_FILEPATH was not found. '
+                            'This should be the full filepath to the raw survey results csv.')
+    assert DATABASE_SCHEMA, ('The env var DATABASE_SCHEMA was not found. '
+                             "This should be the schema name into which we're writing the survey results. "
+                             'Unless you know of a reason otherwise, it should be "sac_survey_2022"')
+    assert INPUT_FILEPATH, ('The env var DATABASE_CONNECTION_STRING was not found.'
+                            'This should be the full SQLAlchemy connection string, like: '
+                            'postgresql://username:password@hostname:port/database')
 
 
 def inspect_file():
@@ -54,6 +68,7 @@ def main():
 
     :return:
     """
+    check_env_vars()
     eng = create_engine(DATABASE_CONNECTION_STRING)
     with open(INPUT_FILEPATH, 'r') as f_in, eng.connect() as conn:
         raw_data_reader = csv_reader(f_in)
@@ -65,12 +80,14 @@ def main():
         # database setup
         conn.execute('BEGIN TRANSACTION;')
         conn.execute(f"SET SCHEMA '{DATABASE_SCHEMA}'")
+        print(f'Writing to schema: {DATABASE_SCHEMA}')
         # TODO: Remove the TRUNCATE before pushing to prod!
         conn.execute(f'TRUNCATE respondents CASCADE;')
 
         # each row represents one respondent's answers to each question.
         # Parse each row into separate tables
-        for row in raw_data_reader:
+        for i, row in enumerate(raw_data_reader):
+            print(i)
             respondent_id = row[0]
             # Create the respondent, including demographic information
             grammar_rank_questions = [convert_to_int(v) for v in row[12:20:2] + [row[21]] if v]
