@@ -1,3 +1,4 @@
+import logging
 from csv import reader as csv_reader
 from sqlalchemy import create_engine, text
 from pprint import pprint
@@ -23,7 +24,7 @@ def check_env_vars():
          'postgresql://username:password@hostname:port/database')
 
 
-def inspect_header():
+def inspect_header(verbose=False):
     """
     Run only to check out the file structure and figure out what is in each column.
     Fix known errors and validate.
@@ -46,8 +47,7 @@ def inspect_header():
             'question context': (sub_question if sub_question else None)
         }
 
-    # pprint(questions)
-    print('_' * 200)
+    logging.info(questions)
     questions = fix_questions(questions)
     validate_fixed_questions(questions)
     return questions
@@ -239,7 +239,7 @@ def validate_fixed_questions(questions):
                                                                        if text != questions[i]['question description']]) + '"')
 
 
-def main():
+def main(verbose=False):
     """
     Insert rows of data into the database.  Tables must already exist.
 
@@ -250,24 +250,23 @@ def main():
     with open(INPUT_FILEPATH, 'r') as f_in, eng.connect() as conn:
         raw_data_reader = csv_reader(f_in)
 
+        questions = inspect_header()
+        # since the questions have been fixed, skip reading those here
         header = raw_data_reader.__next__()
-        validate_fixed_questions(header)
         sub_header = raw_data_reader.__next__()
 
         # database setup
         conn.execute('BEGIN TRANSACTION;')
         conn.execute(f"SET SCHEMA '{DATABASE_SCHEMA}'")
-        print(f'Writing to schema: {DATABASE_SCHEMA}')
-        # TODO: Remove the TRUNCATE before pushing to prod!
-        conn.execute(f'TRUNCATE respondents CASCADE;')
+        logging.info(f'Writing to schema: {DATABASE_SCHEMA}')
 
-        # each row represents one respondent's answers to each question.
+        # each row represents one respondent's answers to every question.
         # Parse each row into separate tables
         for i, row in enumerate(raw_data_reader):
-            print(i)
+            logging.info(f'Processing row {i}')
             respondent_id = row[0]
             # Create the respondent, including demographic information
-            grammar_rank_questions = [convert_to_int(v) for v in row[12:20:2] + [row[21]] if v]
+            grammar_rank_questions = [convert_to_int(v) for v in row[i for i, q in questions.items() if q['question context'] == 'Grammar School'] if v] # TODO pick up here
             upper_rank_questions = [convert_to_int(v) for v in row[13:20:2] + [row[22]] if v]
             all_rank_questions = grammar_rank_questions + upper_rank_questions
             add_to_table(
@@ -277,15 +276,10 @@ def main():
                 collector_id=row[1],
                 start_datetime=row[2],
                 end_datetime=row[3],
-                tenure=int(row[9]) if row[9] else None,
-                grammar_conferences=convert_to_bool(row[10]),
-                upper_conferences=convert_to_bool(row[11]),
+                tenure=int(row[133]) if row[133] else None,
                 # student services questions alternate rows between grammar/upper responses
-                grammar_support=any(row[33:51:2]),
-                upper_support=any(row[34:51:2]),
-                any_support=any(row[34:52]),
-                # TODO: Break out IEP and 504s for separate analytics
-                minority=convert_to_bool(row[52]),
+                support_services=row[134],
+                minority=convert_to_bool(row[135]),
                 grammar_avg=(sum(grammar_rank_questions) / len(grammar_rank_questions)
                              if len(grammar_rank_questions) > 0 else None),
                 upper_avg=(sum(upper_rank_questions) / len(upper_rank_questions)
