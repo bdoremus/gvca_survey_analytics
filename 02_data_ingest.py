@@ -3,7 +3,6 @@ from sqlalchemy import create_engine, text
 from pprint import pprint
 from dotenv import dotenv_values
 
-
 env_vars = dotenv_values()
 INPUT_FILEPATH = env_vars.get('INPUT_FILEPATH')
 DATABASE_SCHEMA = env_vars.get('DATABASE_SCHEMA')
@@ -11,55 +10,230 @@ DATABASE_CONNECTION_STRING = env_vars.get('DATABASE_CONNECTION_STRING')
 
 
 def check_env_vars():
-    assert INPUT_FILEPATH, ('The env var INPUT_FILEPATH was not found. '
-                            'This should be the full filepath to the raw survey results csv.')
-    assert DATABASE_SCHEMA, ('The env var DATABASE_SCHEMA was not found. '
-                             "This should be the schema name into which we're writing the survey results. "
-                             'Unless you know of a reason otherwise, it should be "sac_survey_2022"')
-    assert INPUT_FILEPATH, ('The env var DATABASE_CONNECTION_STRING was not found.'
-                            'This should be the full SQLAlchemy connection string, like: '
-                            'postgresql://username:password@hostname:port/database')
+    assert INPUT_FILEPATH, \
+        ('The env var INPUT_FILEPATH was not found. '
+         'This should be the full filepath to the raw survey results csv.')
+    assert DATABASE_SCHEMA, \
+        ('The env var DATABASE_SCHEMA was not found. '
+         "This should be the schema name into which we're writing the survey results. "
+         'Unless you know of a reason otherwise, it should be "sac_survey_2023"')
+    assert DATABASE_CONNECTION_STRING, \
+        ('The env var DATABASE_CONNECTION_STRING was not found.'
+         'This should be the full SQLAlchemy connection string, like: '
+         'postgresql://username:password@hostname:port/database')
 
 
-def inspect_file():
+def inspect_header():
     """
-    Run only to check out the file structure and figure out what is in each column
-    :return:
+    Run only to check out the file structure and figure out what is in each column.
+    Fix known errors and validate.
+
+    :return questions: dict(int: {'question description': str, 'question context': str})
     """
     # get headers, organize columns
     with open(INPUT_FILEPATH, 'r') as f_in:
         raw_data_reader = csv_reader(f_in)
         raw_header = raw_data_reader.__next__()
         raw_sub_header = raw_data_reader.__next__()
-        ignore_sub_headers = ['Open-Ended Response', 'Response']
 
-        # fill empty columns with the appropriate question
-        questions = []
-        for i, (question, sub_question) in enumerate(zip(raw_header, raw_sub_header)):
-            questions += [(i,
-                           (question if question else questions[-1][1]),
-                           (sub_question if sub_question and sub_question not in ignore_sub_headers else None))]
+    # fill empty columns with the appropriate question
+    questions = {}
+    current_question = None
+    for i, (question, sub_question) in enumerate(zip(raw_header, raw_sub_header)):
+        current_question = question if question else current_question  # if it's blank, use the last question that wasn't blank
+        questions[i] = {
+            'question description': current_question,
+            'question context': (sub_question if sub_question else None)
+        }
 
-    pprint(questions)
+    # pprint(questions)
+    print('_' * 200)
+    questions = fix_questions(questions)
+    validate_fixed_questions(questions)
+    return questions
 
 
-def validate_header(header):
-    assert header[0] == 'Respondent ID'
-    assert header[2] == 'Start Date'
-    assert header[3] == 'End Date'
-    assert header[9] == 'How many years have you had a child at Golden View Classical Academy?  The current academic year counts as 1.'
-    assert header[10] == 'Did you or one of your children attend conferences this year?'
-    assert header[12] == 'Given your children’s education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?'
-    assert header[14] == 'How satisfied are you with the education that your children have received at Golden View Classical Academy this year?'
-    assert header[16] == 'GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How strongly is the school culture influenced by those virtues?'
-    assert header[18] == "How effective is the communication between your family and your childrens' teachers?"
-    assert header[20] == 'How effective is the communication between your family and the school leadership?'
-    assert header[21] == 'How welcoming is the school community?'
-    assert header[23] == "Given this year's challenges, what are your thoughts on the following aspects of the school environment?"
-    assert header[27] == "What makes GVCA a good choice for you and your family?"
-    assert header[30] == 'Please provide us with examples of how GVCA can better serve you and your family.'
-    assert header[33] == 'What services have your children received at Golden View this school year? Please check all that apply.'
-    assert header[52] == 'Do you consider yourself or your children part of a racial, ethnic, or cultural minority group?'
+def fix_questions(questions):
+    """
+    fix typos in questions, and add additional context where needed.
+
+    :param questions: dict(int: {'question description': str, 'question context': str})
+    :return questions:
+    """
+    # Typo with wrong type of apostrophe
+    for i in [12, 24, 25, 44, 45, 65, 66, 67, 92, 104, 105, 123]:
+        if questions[i]['question description'] == "Given your children’s education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?":
+            questions[i]['question description'] = "Given your children's education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?"
+
+    # Typo: childrens' should be children's
+    for i in [93, 106, 107, 124]:
+        if questions[i]['question description'] == "GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How well does the school culture reflect these virtues?":
+            questions[i]['question description'] = "GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How well is the school culture reflected by these virtues?"
+
+    # Typo: childrens' should be children's
+    for i in [15, 30, 31, 50, 51, 74, 75, 76, 95, 110, 111, 126]:
+        if questions[i]['question description'] == "How effective is the communication between your family and your childrens' teachers?":
+            questions[i]['question description'] = "How effective is the communication between your family and your children's teachers?"
+
+    # Fix question context for open response questions
+    open_response_questions = [[18, 19, 20, 21], [36, 37, 38, 39, 40, 41], [56, 57, 58, 59, 60, 61], [83, 84, 85, 86, 87, 88, 89, 90], [98, 99, 100, 101], [116, 117, 118, 119, 120, 121], [129, 130, 131, 132], ]
+    for question_group in open_response_questions:
+        for i_order, i in enumerate(question_group):
+            if questions[i]['question description'] == 'Responses pertinent to Grammar School only':
+                questions[i]['question context'] = 'Grammar School'
+            elif questions[i]['question description'] == 'Responses pertinent to Middle School only':
+                questions[i]['question context'] = 'Middle School'
+            elif questions[i]['question description'] == 'Responses pertinent to Upper School only':
+                questions[i]['question context'] = 'Upper School'
+            elif questions[i]['question description'] == 'Responses generic to the whole school.':
+                questions[i]['question context'] = 'Whole School'
+
+            # The question groups are split in half.
+            # The first half are "why is GVCA a good choice" and the second half are "where can we improve"
+            if i_order < len(question_group) / 2:
+                questions[i]['question description'] = 'What makes GVCA a good choice for you and your family?'
+            else:
+                questions[i]['question description'] = 'Please provide us with examples of how GVCA can better serve you and your family.'
+
+    return questions
+
+
+def validate_fixed_questions(questions):
+    """
+    Validate that the questions are what we want them to be after 'fixing' them.
+
+    :param questions: dict(int: {'question description': str, 'question context': str})
+    :return: None
+    """
+    # Test question text and question context
+    for indexes, text, text_type in [
+        # Question Description checks
+        (
+                [0],
+                "Respondent ID",
+                'question description'
+        ),
+        (
+                [1],
+                "Collector ID",
+                'question description'
+        ),
+        (
+                [2],
+                "Start Date",
+                'question description'
+        ),
+        (
+                [3],
+                "End Date",
+                'question description'
+        ),
+        (
+                [9],
+                "For your children, choose a method of submission.",
+                'question description'
+        ),
+        (
+                [10],
+                "This academic year, in which grades are your children?",
+                'question description'
+        ),
+        (
+                [11, 22, 23, 42, 43, 62, 63, 64, 91, 102, 103, 122],
+                "How satisfied are you with the education that Golden View Classical Academy provided this year?",
+                'question description'
+        ),
+        (
+                [12, 24, 25, 44, 45, 65, 66, 67, 92, 104, 105, 123],
+                "Given your children's education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?",
+                'question description'
+        ),
+        (
+                [13, 26, 27, 46, 47, 68, 69, 70, 93, 106, 107, 124],
+                "GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How well is the school culture reflected by these virtues?",
+                'question description'
+        ),
+        (
+                [14, 28, 29, 48, 49, 71, 72, 73, 94, 108, 109, 125],
+                "How satisfied are you with your children's growth in moral character and civic virtue?",
+                'question description'
+        ),
+        (
+                [15, 30, 31, 50, 51, 74, 75, 76, 95, 110, 111, 126],
+                "How effective is the communication between your family and your children's teachers?",
+                'question description'
+        ),
+        (
+                [16, 32, 33, 52, 53, 77, 78, 79, 96, 112, 113, 127],
+                "How effective is the communication between your family and the school leadership?",
+                'question description'
+        ),
+        (
+                [17, 34, 35, 54, 55, 80, 81, 82, 97, 114, 115, 128],
+                "How welcoming is the school community?",
+                'question description'
+        ),
+        (
+                [18, 19, 36, 37, 38, 56, 57, 58, 83, 84, 85, 86, 98, 99, 116, 117, 118, 129, 130],
+                "What makes GVCA a good choice for you and your family?",
+                'question description'
+        ),
+        (
+                [20, 21, 39, 40, 41, 59, 60, 61, 87, 88, 89, 90, 100, 101, 119, 120, 121, 131, 132],
+                "Please provide us with examples of how GVCA can better serve you and your family.",
+                'question description'
+        ),
+        (
+                [133],
+                "How many years have you had a child at GVCA?  The current academic year counts as 1.",
+                'question description'
+        ),
+        (
+                [134],
+                "Do you have one or more children on an IEP, 504, ALP, or READ Plan?",
+                'question description'
+        ),
+        (
+                [135],
+                "Do you consider yourself or your children part of a racial, ethnic, or cultural minority group?",
+                'question description'
+        ),
+        # Question Context checks
+        (
+                [9, 10, 11, 12, 13, 14, 15, 16, 17, 91, 92, 93, 94, 95, 96, 97, 122, 123, 124, 125, 126, 127, 128, 134, 135],
+                "Response",
+                'question context'
+        ),
+        (
+                [133],
+                "Open-Ended Response",
+                'question context'
+        ),
+        (
+                [18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 39, 42, 44, 46, 48, 50, 52, 54, 56, 59, 62, 65, 68, 71, 74, 77, 80, 83, 87],
+                "Grammar School",
+                'question context'
+        ),
+        (
+                [23, 25, 27, 29, 31, 33, 35, 37, 40, 63, 66, 69, 72, 75, 78, 81, 84, 88, 98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 119],
+                "Middle School",
+                'question context'
+        ),
+        (
+                [43, 45, 47, 49, 51, 53, 55, 57, 60, 64, 67, 70, 73, 76, 79, 82, 85, 89, 103, 105, 107, 109, 111, 113, 115, 117, 120, 129, 131],
+                "Upper School",
+                'question context'
+        ),
+        (
+                [19, 21, 38, 41, 58, 61, 86, 90, 99, 101, 118, 121, 130, 132],
+                "Whole School",
+                'question context'
+        ),
+    ]:
+        assert all(text == questions[i][text_type] for i in indexes), (  # compose a useful error message
+                f'Expected {text_type} = "{text}"\n\t' + '"\n\t'.join([f'column {i}: "{questions[i]["question description"]}'
+                                                                       for i in indexes
+                                                                       if text != questions[i]['question description']]) + '"')
 
 
 def main():
@@ -74,7 +248,7 @@ def main():
         raw_data_reader = csv_reader(f_in)
 
         header = raw_data_reader.__next__()
-        validate_header(header)
+        validate_fixed_questions(header)
         sub_header = raw_data_reader.__next__()
 
         # database setup
@@ -390,4 +564,5 @@ def convert_to_int(value):
 
 
 if __name__ == '__main__':
-    main()
+    # main()
+    inspect_header()
