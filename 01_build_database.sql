@@ -1,93 +1,118 @@
-CREATE SCHEMA IF NOT EXISTS sac_survey_2022;
-SET SCHEMA 'sac_survey_2022';
+CREATE DATABASE gvca_survey OWNER "ben.doremus";
+SET ROLE "ben.doremus";
 
-create table respondents
+CREATE SCHEMA sac_survey_2023;
+SET SCHEMA 'sac_survey_2023';
+
+CREATE TABLE respondents
 (
-    respondent_id       bigint not null
-        constraint respondents_pk
-            primary key,
-    collector_id        bigint,
-    start_datetime      timestamp,
-    end_datetime        timestamp,
-    tenure              integer,
-    minority            boolean,
-    grammar_conferences boolean,
-    upper_conferences   boolean,
-    grammar_support     boolean,
-    upper_support       boolean,
-    any_support         boolean,
-    grammar_avg         float4,
-    upper_avg           float4,
-    overall_avg         float4
+    respondent_id               BIGINT NOT NULL
+        CONSTRAINT respondents_pk PRIMARY KEY,
+    collector_id                BIGINT,
+    start_datetime              TIMESTAMP,
+    end_datetime                TIMESTAMP,
+    num_individuals_in_response SMALLINT,
+    tenure                      INTEGER,
+    minority                    BOOLEAN,
+    grammar_support             BOOLEAN,
+    middle_support              BOOLEAN,
+    upper_support               BOOLEAN,
+    any_support                 BOOLEAN,
+    grammar_avg                 float4,
+    middle_avg                  float4,
+    upper_avg                   float4,
+    overall_avg                 float4
 );
 
-create table question_rank
+CREATE TABLE questions
 (
-    respondent_id bigint            not null
-            references respondents(respondent_id),
-    question_id   integer default 2 not null,
-    grammar       boolean           not null,
-    upper         boolean           not null,
-    response      smallint,
-    constraint question_rank_pk
-        primary key (respondent_id, upper, grammar, question_id)
+    question_id   SMALLINT
+        CONSTRAINT questions_pk PRIMARY KEY,
+    question_type TEXT,
+    question_text TEXT,
+    mandatory     BOOLEAN
 );
 
-create table question_open_response
+CREATE TABLE collectors
 (
-    respondent_id   bigint   not null
-            references respondents(respondent_id),
-    question_id     smallint not null,
-    sub_question_id text     not null,
-    response        text,
-    constraint question_open_response_pk
-        primary key (respondent_id, question_id, sub_question_id)
+    collector_id          BIGINT NOT NULL
+        CONSTRAINT collectors_pk PRIMARY KEY,
+    collector_description TEXT
 );
 
-create table question_services_provided
-(
-    respondent_id bigint  not null
-            references respondents(respondent_id),
-    question_id   integer not null,
-    grammar       boolean not null,
-    upper         boolean not null,
-    service_name  text    not null,
-    constraint question_services_provided_pk
-        primary key (respondent_id, question_id, grammar, upper, service_name)
-);
-
-create table question
-(
-    question_id   smallint primary key,
-    question_text text
-);
-
-INSERT INTO question (question_id, question_text)
-VALUES (1, 'How many years have you had a child at Golden View Classical Academy?  The current academic year counts as 1.'),
-       (2, 'Did you or one of your children attend conferences this year?'),
-       (3, 'Given your children''s education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?'),
-       (4, 'How satisfied are you with the education that your children have received at Golden View Classical Academy this year?'),
-       (5, 'GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How strongly is the school culture influenced by those virtues?'),
-       (6, 'How effective is the communication between your family and your childrens'' teachers?'),
-       (7, 'How effective is the communication between your family and the school leadership?'),
-       (8, 'How welcoming is the school community?'),
-       (9, 'Given this year''s challenges, what are your thoughts on the following aspects of the school environment?'),
-       (10, 'What makes GVCA a good choice for you and your family?'),
-       (11, 'Please provide us with examples of how GVCA can better serve you and your family.'),
-       (12, 'What services have your children received at Golden View this school year? Please check all that apply.'),
-       (13, 'Do you consider yourself or your children part of a racial, ethnic, or cultural minority group?')
+INSERT INTO questions (question_id, question_type, question_text, mandatory)
+VALUES (1, 'multiple choice', 'Choose a method of submission.', TRUE),
+       (2, 'multiple choice', 'This academic year, in which grades are your children?', TRUE),
+       (3, 'rank', 'How satisfied are you with the education that Golden View Classical Academy provided this year?', FALSE),
+       (4, 'rank', 'Given your children''s education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?', FALSE),
+       (5, 'rank', 'GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder.  How well is the school culture reflected by these virtues?', FALSE),
+       (6, 'rank', 'How satisfied are yo uwith your children''s growth in moral character and civic virtue?', FALSE),
+       (7, 'rank', 'How effective is the communication between your family and your children''s teachers?', FALSE),
+       (8, 'rank', 'How effective is the communication between your family and the school leadership?', FALSE),
+       (9, 'rank', 'How welcoming is the school community?', FALSE),
+       (10, 'open response', 'What makes GVCA a good choice for you and your family?', FALSE),
+       (11, 'open response', 'Please provide us with examples of how GVCA can better serve you and your family.', FALSE),
+       (12, 'numeric', 'How many years have you had a child AT GVCA?  The current academic year counts AS 1.', FALSE),
+       (13, 'boolean', 'Do you have one or more children on an IEP, 504, ALP, or READ Plan?', FALSE),
+       (14, 'boolean', 'Do you consider yourself or any of your children part of a racial, ethnic, or cultural minority group?', FALSE)
 ;
 
-create table response_definition
+
+CREATE TABLE question_rank_responses
 (
-    question_id          smallint references question (question_id),
-    response             smallint,
-    response_description text,
-    constraint response_definition_pk
-        primary key (question_id, response)
+    respondent_id  BIGINT  NOT NULL
+        REFERENCES respondents (respondent_id),
+    question_id    INTEGER NOT NULL
+        REFERENCES questions (question_id),
+    grammar        BOOLEAN NOT NULL,
+    middle         BOOLEAN NOT NULL,
+    upper          BOOLEAN NOT NULL,
+    response_value SMALLINT,
+    response_text  TEXT,
+    CONSTRAINT question_rank_responses_pk
+        PRIMARY KEY (respondent_id, upper, grammar, question_id)
 );
 
-INSERT INTO response_definition (question_id, response, response_description)
+CREATE TABLE question_open_responses
+(
+    respondent_id   BIGINT   NOT NULL
+        REFERENCES respondents (respondent_id),
+    question_id     SMALLINT NOT NULL
+        REFERENCES questions (question_id),
+    sub_question_id TEXT     NOT NULL,
+    grammar         TEXT     NOT NULL,
+    middle          TEXT     NOT NULL,
+    upper           TEXT     NOT NULL,
+    whole_school    TEXT     NOT NULL,
+    CONSTRAINT question_open_responses_pk
+        PRIMARY KEY (respondent_id, question_id, sub_question_id)
+);
+
+CREATE TABLE question_boolean_responses
+(
+    respondent_id  BIGINT  NOT NULL
+        REFERENCES respondents (respondent_id),
+    question_id    INTEGER NOT NULL
+        REFERENCES questions (question_id),
+    grammar        BOOLEAN NOT NULL,
+    middle         BOOLEAN NOT NULL,
+    upper          BOOLEAN NOT NULL,
+    response_value BOOLEAN,
+    response_text  TEXT,
+    CONSTRAINT question_boolean_responses_pk
+        PRIMARY KEY (respondent_id, question_id)
+);
+
+CREATE TABLE question_rank_response_mapping
+(
+    question_id    SMALLINT REFERENCES questions (question_id),
+    response_value SMALLINT,
+    response_text  TEXT,
+    CONSTRAINT question_response_mapping_pk
+        PRIMARY KEY (question_id, response_value)
+);
+
+INSERT INTO question_rank_response_mapping (question_id, response_value, response_text)
 VALUES (3, 4, 'Extremely Satisfied'),
        (3, 3, 'Satisfied'),
        (3, 2, 'Somewhat Satisfied'),
@@ -98,37 +123,28 @@ VALUES (3, 4, 'Extremely Satisfied'),
        (4, 2, 'Somewhat Satisfied'),
        (4, 1, 'Not Satisfied'),
 
-       (5, 4, 'Strongly Influenced'),
-       (5, 3, 'Influenced'),
-       (5, 2, 'Somewhat Influenced'),
-       (5, 1, 'Not Influenced'),
+       (5, 4, 'Strongly Reflected'),
+       (5, 3, 'Reflected'),
+       (5, 2, 'Somewhat Reflected'),
+       (5, 1, 'Not Reflected'),
 
-       (6, 4, 'Extremely Effective'),
-       (6, 3, 'Effective'),
-       (6, 2, 'Somewhat Effective'),
-       (6, 1, 'Not Effective'),
+       (6, 4, 'Extremely Satisfied'),
+       (6, 3, 'Satisfied'),
+       (6, 2, 'Somewhat Satisfied'),
+       (6, 1, 'Not Satisfied'),
 
        (7, 4, 'Extremely Effective'),
        (7, 3, 'Effective'),
        (7, 2, 'Somewhat Effective'),
        (7, 1, 'Not Effective'),
 
-       (8, 4, 'Extremely Welcoming'),
-       (8, 3, 'Welcoming'),
-       (8, 2, 'Somewhat Welcoming'),
-       (8, 1, 'Not Welcoming')
-;
+       (8, 4, 'Extremely Effective'),
+       (8, 3, 'Effective'),
+       (8, 2, 'Somewhat Effective'),
+       (8, 1, 'Not Effective'),
 
-CREATE TABLE open_response_categories
-(
-    question_id     smallint
-        references question (question_id),
-    sub_question_id text,
-    respondent_id   bigint
-        references respondents (respondent_id),
-    grammar         bool,
-    upper           bool,
-    category        text,
-    sentiment       text
-)
+       (9, 4, 'Extremely Welcoming'),
+       (9, 3, 'Welcoming'),
+       (9, 2, 'Somewhat Welcoming'),
+       (9, 1, 'Not Welcoming')
 ;
