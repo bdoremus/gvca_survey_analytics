@@ -76,9 +76,12 @@ def fix_questions(questions):
             questions[i]['question description'] = "How effective is the communication between your family and your children's teachers?"
 
     # Fix question context for open response questions
+    # These were weird because the page title was the actual question, and the question was the context.
+    # It made sense visually to the survey users, so I intentionally pushed the pain to the data processing step instead of the end users
     open_response_questions = [[18, 19, 20, 21], [36, 37, 38, 39, 40, 41], [56, 57, 58, 59, 60, 61], [83, 84, 85, 86, 87, 88, 89, 90], [98, 99, 100, 101], [116, 117, 118, 119, 120, 121], [129, 130, 131, 132], ]
     for question_group in open_response_questions:
         for i_order, i in enumerate(question_group):
+            # Use the current description to correct the context
             if questions[i]['question description'] == 'Responses pertinent to Grammar School only':
                 questions[i]['question context'] = 'Grammar School'
             elif questions[i]['question description'] == 'Responses pertinent to Middle School only':
@@ -88,7 +91,7 @@ def fix_questions(questions):
             elif questions[i]['question description'] == 'Responses generic to the whole school.':
                 questions[i]['question context'] = 'Whole School'
 
-            # The question groups are split in half.
+            # Knowing that there are only two pages for each group, we can infer the question by splitting the group in half.
             # The first half are "why is GVCA a good choice" and the second half are "where can we improve"
             if i_order < len(question_group) / 2:
                 questions[i]['question description'] = 'What makes GVCA a good choice for you and your family?'
