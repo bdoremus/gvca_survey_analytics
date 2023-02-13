@@ -4,19 +4,34 @@ SET ROLE "ben.doremus";
 CREATE SCHEMA sac_survey_2023;
 SET SCHEMA 'sac_survey_2023';
 
+
+CREATE TABLE collectors
+(
+    collector_id          BIGINT NOT NULL
+        CONSTRAINT collectors_pk PRIMARY KEY,
+    collector_description TEXT,
+    collector_created     TIMESTAMP
+);
+
+INSERT INTO collectors(collector_id, collector_description, collector_created)
+VALUES ('449194212', 'Testing', '1/3/23 20:24'),
+       ('449194285', 'Dr. Garrow''s emails', '1/3/23 20:38'),
+       ('449205805', 'Signage', '1/4/23 12:49'),
+       ('449205862', 'Newsletter', '1/4/23 12:51')
+;
+
+
 CREATE TABLE respondents
 (
     respondent_id               BIGINT NOT NULL
         CONSTRAINT respondents_pk PRIMARY KEY,
-    collector_id                BIGINT,
+    collector_id                BIGINT
+        CONSTRAINT respondents_collectors_fk REFERENCES collectors (collector_id),
     start_datetime              TIMESTAMP,
     end_datetime                TIMESTAMP,
     num_individuals_in_response SMALLINT,
     tenure                      INTEGER,
     minority                    BOOLEAN,
-    grammar_support             BOOLEAN,
-    middle_support              BOOLEAN,
-    upper_support               BOOLEAN,
     any_support                 BOOLEAN,
     grammar_avg                 float4,
     middle_avg                  float4,
@@ -31,13 +46,6 @@ CREATE TABLE questions
     question_type TEXT,
     question_text TEXT,
     mandatory     BOOLEAN
-);
-
-CREATE TABLE collectors
-(
-    collector_id          BIGINT NOT NULL
-        CONSTRAINT collectors_pk PRIMARY KEY,
-    collector_description TEXT
 );
 
 INSERT INTO questions (question_id, question_type, question_text, mandatory)
@@ -61,9 +69,9 @@ VALUES (1, 'multiple choice', 'Choose a method of submission.', TRUE),
 CREATE TABLE question_rank_responses
 (
     respondent_id  BIGINT  NOT NULL
-        REFERENCES respondents (respondent_id),
+        CONSTRAINT question_rank_responses_respondents_fk REFERENCES respondents (respondent_id),
     question_id    INTEGER NOT NULL
-        REFERENCES questions (question_id),
+        CONSTRAINT question_rank_responses_question_fk REFERENCES questions (question_id),
     grammar        BOOLEAN NOT NULL,
     middle         BOOLEAN NOT NULL,
     upper          BOOLEAN NOT NULL,
@@ -76,13 +84,13 @@ CREATE TABLE question_rank_responses
 CREATE TABLE question_open_responses
 (
     respondent_id BIGINT   NOT NULL
-        REFERENCES respondents (respondent_id),
+        CONSTRAINT question_open_responses_respondents_fk REFERENCES respondents (respondent_id),
     question_id   SMALLINT NOT NULL
-        REFERENCES questions (question_id),
-    grammar       TEXT     NOT NULL,
-    middle        TEXT     NOT NULL,
-    upper         TEXT     NOT NULL,
-    whole_school  TEXT     NOT NULL,
+        CONSTRAINT question_open_responses_questions_fk REFERENCES questions (question_id),
+    grammar       BOOLEAN  NOT NULL,
+    middle        BOOLEAN  NOT NULL,
+    upper         BOOLEAN  NOT NULL,
+    whole_school  BOOLEAN  NOT NULL,
     response      TEXT,
     CONSTRAINT question_open_responses_pk
         PRIMARY KEY (respondent_id, question_id, grammar, middle, upper, whole_school)
@@ -91,7 +99,8 @@ CREATE TABLE question_open_responses
 
 CREATE TABLE question_response_mapping
 (
-    question_id    SMALLINT REFERENCES questions (question_id),
+    question_id    SMALLINT
+        CONSTRAINT question_response_mapping_question_fk REFERENCES questions (question_id),
     response_value SMALLINT,
     response_text  TEXT,
     CONSTRAINT question_response_mapping_pk
