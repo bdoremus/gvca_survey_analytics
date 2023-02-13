@@ -52,7 +52,7 @@ VALUES (1, 'multiple choice', 'Choose a method of submission.', TRUE),
        (9, 'rank', 'How welcoming is the school community?', FALSE),
        (10, 'open response', 'What makes GVCA a good choice for you and your family?', FALSE),
        (11, 'open response', 'Please provide us with examples of how GVCA can better serve you and your family.', FALSE),
-       (12, 'numeric', 'How many years have you had a child AT GVCA?  The current academic year counts AS 1.', FALSE),
+       (12, 'numeric', 'How many years have you had a child at GVCA?  The current academic year counts as 1.', FALSE),
        (13, 'boolean', 'Do you have one or more children on an IEP, 504, ALP, or READ Plan?', FALSE),
        (14, 'boolean', 'Do you consider yourself or any of your children part of a racial, ethnic, or cultural minority group?', FALSE)
 ;

@@ -3,8 +3,8 @@
 import logging
 from csv import reader as csv_reader
 from sqlalchemy import create_engine, text
-from statistics import fmean
 from dotenv import dotenv_values
+from pprint import pprint
 
 env_vars = dotenv_values()
 INPUT_FILEPATH = env_vars.get('INPUT_FILEPATH')
@@ -106,6 +106,17 @@ def fix_questions(conn, questions):
                 questions[i]['question description'] = 'What makes GVCA a good choice for you and your family?'
             else:
                 questions[i]['question description'] = 'Please provide us with examples of how GVCA can better serve you and your family.'
+
+    # Fix question context where it wasn't a matrix question because there was only one grade level involved
+    for i in range(11, 18):
+        if questions[i]['question context'] == "Response":
+            questions[i]['question context'] = "Grammar School"
+    for i in range(91, 98):
+        if questions[i]['question context'] == "Response":
+            questions[i]['question context'] = "Middle School"
+    for i in range(122, 129):
+        if questions[i]['question context'] == "Response":
+            questions[i]['question context'] = "Upper School"
 
     # Add additional information to each header
     question_info_from_db = conn.execute(f"""SELECT question_id, question_type, question_text FROM {DATABASE_SCHEMA}.questions;""").fetchall()
@@ -230,7 +241,7 @@ def validate_fixed_questions(questions):
         ),
         # Question Context checks
         (
-                [9, 10, 11, 12, 13, 14, 15, 16, 17, 91, 92, 93, 94, 95, 96, 97, 122, 123, 124, 125, 126, 127, 128, 134, 135],
+                [9, 10, 134, 135],
                 "Response",
                 'question context'
         ),
@@ -240,17 +251,17 @@ def validate_fixed_questions(questions):
                 'question context'
         ),
         (
-                [18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 39, 42, 44, 46, 48, 50, 52, 54, 56, 59, 62, 65, 68, 71, 74, 77, 80, 83, 87],
+                [*range(11, 18), *range(18, 38, 2), 39, 42, 44, 46, 48, 50, 52, 54, 56, 59, 62, 65, 68, 71, 74, 77, 80, 83, 87],
                 "Grammar School",
                 'question context'
         ),
         (
-                [23, 25, 27, 29, 31, 33, 35, 37, 40, 63, 66, 69, 72, 75, 78, 81, 84, 88, 98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 119],
+                [23, 25, 27, 29, 31, 33, 35, 37, 40, 63, 66, 69, 72, 75, 78, 81, 84, 88, *range(91, 98), 98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 119],
                 "Middle School",
                 'question context'
         ),
         (
-                [43, 45, 47, 49, 51, 53, 55, 57, 60, 64, 67, 70, 73, 76, 79, 82, 85, 89, 103, 105, 107, 109, 111, 113, 115, 117, 120, 129, 131],
+                [43, 45, 47, 49, 51, 53, 55, 57, 60, 64, 67, 70, 73, 76, 79, 82, 85, 89, 103, 105, 107, 109, 111, 113, 115, 117, 120, *range(122, 129), 129, 131],
                 "Upper School",
                 'question context'
         ),
@@ -351,8 +362,6 @@ def populate_respondents(conn, questions, row):
         overall_avg=(sum(all_rank_questions) / len(all_rank_questions)
                      if len(all_rank_questions) > 0 else None),
     )
-    if len(all_rank_questions) == 0:
-        pass
 
 
 def populate_rank_response(conn, question_id, question_text, raw_questions, row):
