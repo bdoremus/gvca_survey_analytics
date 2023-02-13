@@ -69,6 +69,16 @@ GROUP BY question_id, question_type, question_text
 ORDER BY question_id
 ;
 
+-- Ensure each question type is assigned one and only one level
+SELECT *
+FROM question_open_responses
+WHERE grammar::int + middle::int + upper::int + whole_school::int <> 1
+;
+SELECT *
+FROM question_rank_responses
+WHERE grammar::int + middle::int + upper::int <> 1
+;
+
 -- Look at distribution of scores
 SELECT COUNT(*) FILTER ( WHERE overall_avg >= 3 )                     AS exceeds,
        COUNT(*) FILTER ( WHERE overall_avg >= 2 AND overall_avg < 3 ) AS meets,
