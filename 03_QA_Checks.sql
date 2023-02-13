@@ -1,9 +1,5 @@
-/*
-How many users answered the survey?
-How many filled out >0 non-mandatory fields?
-How many filled out all fields?
- */
-WITH responses_by_respondent AS
+-- Apply soft deletes to those who didn't fill out any non-mandatory information
+WITH responses_by_respondents AS
          (
              SELECT respondent_id,
                     open_response.respondent_id IS NOT NULL AS has_open_response,
@@ -14,15 +10,24 @@ WITH responses_by_respondent AS
                       LEFT JOIN
                       (SELECT DISTINCT respondent_id FROM question_rank_responses) AS rank_response USING (respondent_id)
          )
-SELECT COUNT(*)                                                                                      AS max_families,
-       COUNT(*) FILTER ( WHERE has_open_response OR has_rank_response )                              AS max_families_any_responses,
-       COUNT(*) FILTER ( WHERE has_open_response AND has_rank_response )                             AS max_families_fully_completed_responses,
-       SUM(num_individuals_in_response) / 2                                                          AS min_families,
-       SUM(num_individuals_in_response) FILTER ( WHERE has_open_response OR has_rank_response ) / 2  AS min_families_any_responses,
-       SUM(num_individuals_in_response) FILTER ( WHERE has_open_response AND has_rank_response ) / 2 AS min_families_fully_completed_responses
+UPDATE respondents
+SET soft_delete = TRUE
+FROM responses_by_respondents
+WHERE responses_by_respondents.respondent_id = respondents.respondent_id
+  AND NOT has_open_response
+  AND NOT has_rank_response
+;
+
+
+/*
+How many users answered the survey?
+How many filled out >0 non-mandatory fields?
+How many filled out all fields?
+ */
+SELECT COUNT(*) FILTER ( WHERE NOT soft_delete )                             AS max_families,
+       SUM(num_individuals_in_response) FILTER ( WHERE NOT soft_delete ) / 2 AS min_families,
+       COUNT(*) FILTER ( WHERE soft_delete )                                 AS num_responses_with_no_contents
 FROM respondents
-         JOIN
-     responses_by_respondent USING (respondent_id)
 ;
 
 -- Calculate the "final" completion rate by averaging the max and min families, then dividing by the number of families
@@ -32,15 +37,9 @@ SELECT (386 + 326) / 2. / 418
 
 -- Look at those who didn't do any ranked choice, but did do open response.  What were their responses?
 SELECT respondent_id,
-       respondent_id,
-       collector_id,
-       start_datetime,
-       end_datetime,
-       num_individuals_in_response,
-       tenure,
-       minority,
        ROUND(EXTRACT(EPOCH FROM end_datetime - start_datetime) / 60, 1) AS minutes_elapsed,
        question_id,
+       question_text,
        grammar,
        middle,
        upper,
@@ -49,10 +48,26 @@ SELECT respondent_id,
 FROM respondents
          LEFT JOIN
      question_open_responses USING (respondent_id)
-WHERE overall_avg IS NULL
+LEFT JOIN
+    questions using(question_id)
+WHERE overall_avg IS NULL AND NOT soft_delete
 ;
 -- Only one person filled out the open response but not the rank questions.  Curious, but fine.
 
+
+-- Look at distribution of open and rank responses by question_id.
+SELECT question_id,
+       question_type,
+       COUNT(DISTINCT COALESCE(question_open_responses.respondent_id, question_rank_responses.respondent_id)),
+       question_text
+FROM questions
+         LEFT JOIN
+     question_open_responses USING (question_id)
+         LEFT JOIN
+     question_rank_responses USING (question_id)
+GROUP BY question_id, question_type, question_text
+ORDER BY question_id
+;
 
 -- Look at distribution of scores
 SELECT COUNT(*) FILTER ( WHERE overall_avg >= 3 )                     AS exceeds,

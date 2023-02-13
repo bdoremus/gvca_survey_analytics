@@ -1,4 +1,5 @@
 # TODO refactor this whole thing to be config based.  Given text[], standardized text output, indexes, etc.
+#      One major problem is that problems are defined separately in the database and the functions below.  If the text doesn't match exactly, there are silent errors.
 
 import logging
 from csv import reader as csv_reader
@@ -381,8 +382,9 @@ def populate_rank_response(conn, question_id, question_text, raw_questions, row)
                 upper=question['question context'] == 'Upper School',
                 response_value=convert_to_int(response)
             )
-
-
+# 'GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How well is the school culture reflected by these virtues?'
+# 'GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder.  How well is the school culture reflected by these virtues?'
+# How satisfied are yo uwith your children's growth in moral character and civic virtue?
 def populate_open_response(conn, question_id, question_text, raw_questions, row):
     # Iterate through the columns of responses.  If it matches the question and has a response, insert it into the db
     for question, response in zip(raw_questions.values(), row):

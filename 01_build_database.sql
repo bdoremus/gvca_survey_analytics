@@ -33,10 +33,11 @@ CREATE TABLE respondents
     tenure                      INTEGER,
     minority                    BOOLEAN,
     any_support                 BOOLEAN,
-    grammar_avg                 float4,
-    middle_avg                  float4,
-    upper_avg                   float4,
-    overall_avg                 float4
+    grammar_avg                 FLOAT4,
+    middle_avg                  FLOAT4,
+    upper_avg                   FLOAT4,
+    overall_avg                 FLOAT4,
+    soft_delete                 BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE questions
@@ -53,8 +54,8 @@ VALUES (1, 'multiple choice', 'Choose a method of submission.', TRUE),
        (2, 'multiple choice', 'This academic year, in which grades are your children?', TRUE),
        (3, 'rank', 'How satisfied are you with the education that Golden View Classical Academy provided this year?', FALSE),
        (4, 'rank', 'Given your children''s education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?', FALSE),
-       (5, 'rank', 'GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder.  How well is the school culture reflected by these virtues?', FALSE),
-       (6, 'rank', 'How satisfied are yo uwith your children''s growth in moral character and civic virtue?', FALSE),
+       (5, 'rank', 'GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How well is the school culture reflected by these virtues?', FALSE),
+       (6, 'rank', 'How satisfied are you with your children''s growth in moral character and civic virtue?', FALSE),
        (7, 'rank', 'How effective is the communication between your family and your children''s teachers?', FALSE),
        (8, 'rank', 'How effective is the communication between your family and the school leadership?', FALSE),
        (9, 'rank', 'How welcoming is the school community?', FALSE),
