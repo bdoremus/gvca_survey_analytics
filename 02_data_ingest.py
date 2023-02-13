@@ -1,5 +1,5 @@
 # TODO refactor this whole thing to be config based.  Given text[], standardized text output, indexes, etc.
-#      One major problem is that problems are defined separately in the database and the functions below.  If the text doesn't match exactly, there are silent errors.
+#      One major problem is that questions are defined separately in the database and the functions below.  If the text doesn't match exactly, there are silent errors.
 
 import logging
 from csv import reader as csv_reader
