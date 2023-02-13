@@ -68,42 +68,28 @@ CREATE TABLE question_rank_responses
     middle         BOOLEAN NOT NULL,
     upper          BOOLEAN NOT NULL,
     response_value SMALLINT,
-    response_text  TEXT,
     CONSTRAINT question_rank_responses_pk
-        PRIMARY KEY (respondent_id, upper, grammar, question_id)
+        PRIMARY KEY (respondent_id, upper, middle, grammar, question_id)
 );
+
 
 CREATE TABLE question_open_responses
 (
-    respondent_id   BIGINT   NOT NULL
+    respondent_id BIGINT   NOT NULL
         REFERENCES respondents (respondent_id),
-    question_id     SMALLINT NOT NULL
+    question_id   SMALLINT NOT NULL
         REFERENCES questions (question_id),
-    sub_question_id TEXT     NOT NULL,
-    grammar         TEXT     NOT NULL,
-    middle          TEXT     NOT NULL,
-    upper           TEXT     NOT NULL,
-    whole_school    TEXT     NOT NULL,
+    grammar       TEXT     NOT NULL,
+    middle        TEXT     NOT NULL,
+    upper         TEXT     NOT NULL,
+    whole_school  TEXT     NOT NULL,
+    response      TEXT,
     CONSTRAINT question_open_responses_pk
-        PRIMARY KEY (respondent_id, question_id, sub_question_id)
+        PRIMARY KEY (respondent_id, question_id, grammar, middle, upper, whole_school)
 );
 
-CREATE TABLE question_boolean_responses
-(
-    respondent_id  BIGINT  NOT NULL
-        REFERENCES respondents (respondent_id),
-    question_id    INTEGER NOT NULL
-        REFERENCES questions (question_id),
-    grammar        BOOLEAN NOT NULL,
-    middle         BOOLEAN NOT NULL,
-    upper          BOOLEAN NOT NULL,
-    response_value BOOLEAN,
-    response_text  TEXT,
-    CONSTRAINT question_boolean_responses_pk
-        PRIMARY KEY (respondent_id, question_id)
-);
 
-CREATE TABLE question_rank_response_mapping
+CREATE TABLE question_response_mapping
 (
     question_id    SMALLINT REFERENCES questions (question_id),
     response_value SMALLINT,
@@ -112,8 +98,11 @@ CREATE TABLE question_rank_response_mapping
         PRIMARY KEY (question_id, response_value)
 );
 
-INSERT INTO question_rank_response_mapping (question_id, response_value, response_text)
-VALUES (3, 4, 'Extremely Satisfied'),
+INSERT INTO question_response_mapping (question_id, response_value, response_text)
+VALUES (1, 1, 'Each parent or guardian will submit a separate survey, and we will submit two surveys.'),
+       (1, 2, 'All parents and guardians will coordinate responses, and we will submit only one survey.'),
+
+       (3, 4, 'Extremely Satisfied'),
        (3, 3, 'Satisfied'),
        (3, 2, 'Somewhat Satisfied'),
        (3, 1, 'Not Satisfied'),

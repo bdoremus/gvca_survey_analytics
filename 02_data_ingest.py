@@ -1,7 +1,9 @@
+# TODO refactor this whole thing to be config based.  Given text[], standardized text output, indexes, etc.
+
 import logging
 from csv import reader as csv_reader
 from sqlalchemy import create_engine, text
-from pprint import pprint
+from statistics import fmean
 from dotenv import dotenv_values
 
 env_vars = dotenv_values()
@@ -24,12 +26,13 @@ def check_env_vars():
          'postgresql://username:password@hostname:port/database')
 
 
-def inspect_header(verbose=False):
+def inspect_header(conn):
     """
     Run only to check out the file structure and figure out what is in each column.
     Fix known errors and validate.
+    Return a list with info about each column in the survey data, aka "header information."
 
-    :return questions: dict(int: {'question description': str, 'question context': str})
+    :return questions: dict(int: {'question description': str, 'question context': str, 'question type': str})
     """
     # get headers, organize columns
     with open(INPUT_FILEPATH, 'r') as f_in:
@@ -38,28 +41,34 @@ def inspect_header(verbose=False):
         raw_sub_header = raw_data_reader.__next__()
 
     # fill empty columns with the appropriate question
-    questions = {}
+    raw_questions = {}
     current_question = None
     for i, (question, sub_question) in enumerate(zip(raw_header, raw_sub_header)):
         current_question = question if question else current_question  # if it's blank, use the last question that wasn't blank
-        questions[i] = {
+
+        # save results for this column of the survey
+        raw_questions[i] = {
             'question description': current_question,
-            'question context': (sub_question if sub_question else None)
+            'question context': (sub_question if sub_question else None),
         }
 
-    logging.info(questions)
-    questions = fix_questions(questions)
-    validate_fixed_questions(questions)
-    return questions
+    logging.info(raw_questions)
+    raw_questions = fix_questions(conn, raw_questions)
+    validate_fixed_questions(raw_questions)
+    return raw_questions
 
 
-def fix_questions(questions):
+def fix_questions(conn, questions):
     """
     fix typos in questions, and add additional context where needed.
 
+    :param conn: sqlalchemy connection
     :param questions: dict(int: {'question description': str, 'question context': str})
     :return questions:
     """
+    if questions[9]['question description'] == 'For your children, choose a method of submission.':
+        questions[9]['question description'] = 'Choose a method of submission.'
+
     # Typo with wrong type of apostrophe
     for i in [12, 24, 25, 44, 45, 65, 66, 67, 92, 104, 105, 123]:
         if questions[i]['question description'] == "Given your children’s education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?":
@@ -98,6 +107,24 @@ def fix_questions(questions):
             else:
                 questions[i]['question description'] = 'Please provide us with examples of how GVCA can better serve you and your family.'
 
+    # Add additional information to each header
+    question_info_from_db = conn.execute(f"""SELECT question_id, question_type, question_text FROM {DATABASE_SCHEMA}.questions;""").fetchall()
+
+    # Add in identifiers and types from the database
+    for i, q in questions.items():
+        results = [(question_type, question_id)
+                   for question_id, question_type, question_text
+                   in question_info_from_db
+                   if question_text == q['question description']]
+        if len(results) == 0:
+            continue
+        elif len(results) > 1:
+            raise IndexError
+
+        question_type, question_id = results[0]
+        q['question type'] = question_type
+        q['question_id'] = question_id
+
     return questions
 
 
@@ -133,7 +160,7 @@ def validate_fixed_questions(questions):
         ),
         (
                 [9],
-                "For your children, choose a method of submission.",
+                "Choose a method of submission.",
                 'question description'
         ),
         (
@@ -239,7 +266,21 @@ def validate_fixed_questions(questions):
                                                                        if text != questions[i]['question description']]) + '"')
 
 
-def main(verbose=False):
+def get_question_response(questions: dict, question_description: str, response_row: dict) -> int:
+    """
+    Iterate through all the columns which match the description.  Return the first of those columns which has been answered (should only be one).
+
+    :param questions: dictionary of all questions and their indexes
+    :param question_description: the text to match
+    :param response_row: the row of responses we're searching through for a response to the question
+    :return:
+    """
+    for i in [question_index for question_index, question_values in questions.items() if question_values['question description'] == question_description]:
+        if response_row[i]:
+            return convert_to_int(response_row[i])
+
+
+def main():
     """
     Insert rows of data into the database.  Tables must already exist.
 
@@ -250,187 +291,113 @@ def main(verbose=False):
     with open(INPUT_FILEPATH, 'r') as f_in, eng.connect() as conn:
         raw_data_reader = csv_reader(f_in)
 
-        questions = inspect_header()
+        raw_questions = inspect_header(conn)
         # since the questions have been fixed, skip reading those here
         header = raw_data_reader.__next__()
         sub_header = raw_data_reader.__next__()
 
         # database setup
         conn.execute('BEGIN TRANSACTION;')
-        conn.execute(f"SET SCHEMA '{DATABASE_SCHEMA}'")
+        conn.execute(f"SET SCHEMA '{DATABASE_SCHEMA}';")
         logging.info(f'Writing to schema: {DATABASE_SCHEMA}')
+
+        # TODO: DELETE THIS!
+        conn.execute('TRUNCATE respondents CASCADE;')
 
         # each row represents one respondent's answers to every question.
         # Parse each row into separate tables
         for i, row in enumerate(raw_data_reader):
             logging.info(f'Processing row {i}')
-            respondent_id = row[0]
-            # Create the respondent, including demographic information
-            grammar_rank_questions = [convert_to_int(v) for v in row[i for i, q in questions.items() if q['question context'] == 'Grammar School'] if v] # TODO pick up here
-            upper_rank_questions = [convert_to_int(v) for v in row[13:20:2] + [row[22]] if v]
-            all_rank_questions = grammar_rank_questions + upper_rank_questions
-            add_to_table(
-                conn,
-                tablename='respondents',
-                respondent_id=respondent_id,
-                collector_id=row[1],
-                start_datetime=row[2],
-                end_datetime=row[3],
-                tenure=int(row[133]) if row[133] else None,
-                # student services questions alternate rows between grammar/upper responses
-                support_services=row[134],
-                minority=convert_to_bool(row[135]),
-                grammar_avg=(sum(grammar_rank_questions) / len(grammar_rank_questions)
-                             if len(grammar_rank_questions) > 0 else None),
-                upper_avg=(sum(upper_rank_questions) / len(upper_rank_questions)
-                           if len(upper_rank_questions) > 0 else None),
-                overall_avg=(sum(all_rank_questions) / len(all_rank_questions)
-                             if len(all_rank_questions) > 0 else None),
-            )
 
-            # question 3:
-            # Given your children’s education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?
-            insert_rank_responses_split_by_grammar_upper(
-                conn,
-                question_id=3,
-                respondent_id=respondent_id,
-                grammar_response=convert_to_int(row[12]),
-                upper_response=convert_to_int(row[13]),
-            )
+            # Includes questions 1, 2, 12, 13, 14, and meta information
+            populate_respondents(conn, raw_questions, row)
 
-            # question 4:
-            # How satisfied are you with the education that your children have received at Golden View Classical Academy this year?
-            insert_rank_responses_split_by_grammar_upper(
-                conn,
-                question_id=4,
-                respondent_id=respondent_id,
-                grammar_response=convert_to_int(row[14]),
-                upper_response=convert_to_int(row[15]),
-            )
-
-            # question 5:
-            # GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How strongly is the school culture influenced by those virtues?
-            insert_rank_responses_split_by_grammar_upper(
-                conn,
-                question_id=5,
-                respondent_id=respondent_id,
-                grammar_response=convert_to_int(row[16]),
-                upper_response=convert_to_int(row[17]),
-            )
-
-            # question 6:
-            # How effective is the communication between your family and your childrens' teachers?
-            insert_rank_responses_split_by_grammar_upper(
-                conn,
-                question_id=6,
-                respondent_id=respondent_id,
-                grammar_response=convert_to_int(row[18]),
-                upper_response=convert_to_int(row[19]),
-            )
-
-            # question 7:
-            # How effective is the communication between your family and the school leadership?
-            if len(row[20]) > 0:
-                add_to_table(
-                    conn,
-                    tablename='question_rank',
-                    respondent_id=respondent_id,
-                    question_id=7,
-                    grammar=False,
-                    upper=False,
-                    response=convert_to_int(row[20]),
-                )
-
-            # question 8:
-            # How welcoming is the school community?
-            insert_rank_responses_split_by_grammar_upper(
-                conn,
-                question_id=8,
-                respondent_id=respondent_id,
-                grammar_response=convert_to_int(row[21]),
-                upper_response=convert_to_int(row[22]),
-            )
-
-            # question 9:
-            # Given this year's challenges, what are your thoughts on the following aspects of the school environment?
-            open_response_question(
-                conn,
-                sub_questions_and_responses={
-                    'teacher': row[23],
-                    'leadership': row[24],
-                    'student_services': row[25],
-                    'child': row[26],
-                },
-                respondent_id=respondent_id,
-                question_id=9,
-            )
-
-            # question 10:
-            # What makes GVCA a good choice for you and your family?
-            open_response_question(
-                conn,
-                sub_questions_and_responses={
-                    'both': row[27],
-                    'grammar': row[28],
-                    'upper': row[29],
-                },
-                respondent_id=respondent_id,
-                question_id=10,
-            )
-
-            # question 11:
-            # Please provide us with examples of how GVCA can better serve you and your family.
-            open_response_question(
-                conn,
-                sub_questions_and_responses={
-                    'both': row[30],
-                    'grammar': row[31],
-                    'upper': row[32],
-                },
-                respondent_id=respondent_id,
-                question_id=11,
-            )
-
-            # question 12:
-            # What services have your children received at Golden View this school year? Please check all that apply.
-            add_services(
-                conn,
-                respondent_id=respondent_id,
-                question_id=12,
-                grammar_services={
-                    'Qualify for Economic Assistance': row[33],
-                    'IEP and related services, including Resource Class, Psychological services, Speech/Lanugage services, and Occupational therapy services':
-                        row[35],
-                    'Section 504 Plan and related services': row[37],
-                    'Gifted and Talented Programming/Advanced Learning Plans': row[39],
-                    'English Language Learning Services': row[41],
-                    'Reading Intervention': row[43],
-                    'Math Intervention': row[45],
-                    'Student Behavior/Counseling-type services': row[47],
-                    'Other': row[49],
-                },
-                upper_services={
-                    'Qualify for Economic Assistance': row[34],
-                    'IEP and related services, including Resource Class, Psychological services, Speech/Lanugage services, and Occupational therapy services':
-                        row[36],
-                    'Section 504 Plan and related services': row[38],
-                    'Gifted and Talented Programming/Advanced Learning Plans': row[40],
-                    'English Language Learning Services': row[41],
-                    'Reading Intervention': row[44],
-                    'Math Intervention': row[46],
-                    'Student Behavior/Counseling-type services': row[48],
-                    'Other': row[50],
-                },
-                other_description=row[51],
-            )
+            # iterate through all questions.  Check the question type, then insert data into the correct place
+            for question_id, question_type, question_text in conn.execute(f"""SELECT question_id, question_type, question_text FROM {DATABASE_SCHEMA}.questions;""").all():
+                logging.info(f'Processing question {question_id} for row {i}')
+                if question_type == 'rank':
+                    populate_rank_response(conn, question_id, question_text, raw_questions, row)
+                if question_type == 'open response':
+                    populate_open_response(conn, question_id, question_text, raw_questions, row)
 
         conn.execute('END TRANSACTION;')
+
+
+def populate_respondents(conn, questions, row):
+    # Create the respondent, including demographic information
+    grammar_rank_questions = [convert_to_int(row[i]) for i, q in questions.items() if q['question context'] == 'Grammar School' and row[i]]
+    middle_rank_questions = [convert_to_int(row[i]) for i, q in questions.items() if q['question context'] == 'Middle School' and row[i]]
+    upper_rank_questions = [convert_to_int(row[i]) for i, q in questions.items() if q['question context'] == 'Upper School' and row[i]]
+    all_rank_questions = grammar_rank_questions + middle_rank_questions + upper_rank_questions
+    add_to_table(
+        conn,
+        tablename='respondents',
+        respondent_id=row[0],
+        collector_id=row[1],
+        start_datetime=row[2],
+        end_datetime=row[3],
+        num_individuals_in_response=(1 if row[9] == 'Each parent or guardian will submit a separate survey, and we will submit two surveys.' else
+                                     2 if row[9] == 'All parents and guardians will coordinate responses, and we will submit only one survey.' else
+                                     None),
+        tenure=int(row[133]) if row[133] else None,
+        minority=convert_to_bool(row[135]),
+        any_support=convert_to_bool(row[134]),
+        grammar_avg=(sum(grammar_rank_questions) / len(grammar_rank_questions)
+                     if len(grammar_rank_questions) > 0 else None),
+        middle_avg=(sum(middle_rank_questions) / len(middle_rank_questions)
+                    if len(middle_rank_questions) > 0 else None),
+        upper_avg=(sum(upper_rank_questions) / len(upper_rank_questions)
+                   if len(upper_rank_questions) > 0 else None),
+        overall_avg=(sum(all_rank_questions) / len(all_rank_questions)
+                     if len(all_rank_questions) > 0 else None),
+    )
+    if len(all_rank_questions) == 0:
+        pass
+
+
+def populate_rank_response(conn, question_id, question_text, raw_questions, row):
+    # Iterate through the columns of responses.  If it matches the question and has a response, insert it into the db
+    for question, response in zip(raw_questions.values(), row):
+        logging.debug(f'question_id: {question_id}')
+        logging.debug(f'question_text: {question_text}')
+        if question['question description'] == question_text and response:
+            logging.debug(f'{question["question context"]} response: {response}')
+            add_to_table(
+                conn,
+                tablename='question_rank_responses',
+                respondent_id=row[0],
+                question_id=question_id,
+                grammar=question['question context'] == 'Grammar School',
+                middle=question['question context'] == 'Middle School',
+                upper=question['question context'] == 'Upper School',
+                response_value=convert_to_int(response)
+            )
+
+
+def populate_open_response(conn, question_id, question_text, raw_questions, row):
+    # Iterate through the columns of responses.  If it matches the question and has a response, insert it into the db
+    for question, response in zip(raw_questions.values(), row):
+        logging.debug(f'question_id: {question_id}')
+        logging.debug(f'question_text: {question_text}')
+        if question['question description'] == question_text and response:
+            logging.debug(f'{question["question context"]} response: {response}')
+            add_to_table(
+                conn,
+                tablename='question_open_responses',
+                respondent_id=row[0],
+                question_id=question_id,
+                grammar=question['question context'] == 'Grammar School',
+                middle=question['question context'] == 'Middle School',
+                upper=question['question context'] == 'Upper School',
+                whole_school=question['question context'] == 'Whole School',
+                response=response
+            )
 
 
 def add_to_table(conn, tablename: str, **kwargs) -> None:
     """
     Insert values into table.
-    Current data model dictates that, at a minimum, all "question" tables should have the following in kwargs:
+    Current data model dictates that, at a minimum, all "question_*_response" tables should have the following in kwargs:
         * question_id
         * respondent_id
 
@@ -443,105 +410,6 @@ def add_to_table(conn, tablename: str, **kwargs) -> None:
     query = text(f'INSERT INTO {tablename} ({", ".join(list(keys))}) '
                  f'VALUES ({", ".join([":" + k for k in keys])})')
     conn.execute(query, {**{'tablename': tablename}, **kwargs})
-
-
-def insert_rank_responses_split_by_grammar_upper(conn, question_id: int, grammar_response: int, upper_response: int,
-                                                 **kwargs) -> None:
-    """
-    "Rank" type questions have both a Grammar and an Upper answer, which may or may not be null.
-    Separate those onto a different row for each non-null response, and indicate whether it was for Grammar or Upper.
-
-    :param conn: connection to database
-    :param question_id: numeric question identifier
-    :param grammar_response: text response to the question for Grammar School.  May be null.
-    :param upper_response: text response to the question for Upper School.  May be null.
-    :param kwargs: expect at least respondent_id; pass it through to add_to_table()
-    :return: None
-    """
-    tablename = 'question_rank'
-    if grammar_response:
-        add_to_table(conn=conn,
-                     tablename=tablename,
-                     question_id=question_id,
-                     grammar=True,
-                     upper=False,
-                     response=grammar_response,
-                     **kwargs
-                     )
-    if upper_response:
-        add_to_table(conn=conn,
-                     tablename=tablename,
-                     question_id=question_id,
-                     grammar=False,
-                     upper=True,
-                     response=upper_response,
-                     **kwargs
-                     )
-
-
-def open_response_question(conn, sub_questions_and_responses: dict, **kwargs) -> None:
-    """
-    Open response questions have multiple different text boxes for different responses.
-    E.G. What do you think of: Teachers, Leadership, Student Services.
-    Separate each sub-question with a non-null response into its own row.
-
-    :param conn: connection to database
-    :param sub_questions_and_responses: {'teachers': 'They rock', 'leadership': 'The best ever'}
-    :param kwargs: expected at least: question_id, respondent_id
-    :return: None
-    """
-    for sub_question_id, response in sub_questions_and_responses.items():
-        if response:
-            add_to_table(
-                conn,
-                tablename='question_open_response',
-                sub_question_id=sub_question_id,
-                response=response,
-                **kwargs
-            )
-
-
-def add_services(conn, grammar_services: dict, upper_services: dict, other_description: str, **kwargs) -> None:
-    """
-    There's a big long list of different student services with separate checkboxes for grammar and upper school.
-    Separate each box which was checked (value is "Upper School" or "Grammar School") onto a separate row.
-
-    :param conn:
-    :param grammar_services:
-    :param upper_services:
-    :param other_description:
-    :param kwargs:
-    :return:
-    """
-    for k, v in grammar_services.items():
-        if v:
-            add_to_table(
-                conn,
-                tablename='question_services_provided',
-                grammar=True,
-                upper=False,
-                service_name=k,
-                **kwargs,
-            )
-    for k, v in upper_services.items():
-        if v:
-            add_to_table(
-                conn,
-                tablename='question_services_provided',
-                grammar=False,
-                upper=True,
-                service_name=k,
-                **kwargs,
-            )
-    if other_description:
-        add_to_table(
-            conn,
-            tablename='question_services_provided',
-            grammar=False,
-            upper=False,
-            service_name=f'OTHER DESCRIPTION: {other_description}',
-            **kwargs,
-        )
 
 
 def convert_to_bool(value):
@@ -561,5 +429,5 @@ def convert_to_int(value):
 
 
 if __name__ == '__main__':
-    # main()
-    inspect_header()
+    # inspect_header()
+    main()
