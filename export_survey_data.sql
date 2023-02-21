@@ -13,8 +13,8 @@ SELECT respondent_id,
        collector_id,
        collector_description
 FROM respondents
-LEFT JOIN
-    collectors USING(collector_id)
+         LEFT JOIN
+     collectors USING (collector_id)
 WHERE NOT soft_delete
 ORDER BY respondent_id
 ;
@@ -39,9 +39,11 @@ WITH all_respondent_questions AS
 SELECT respondent_id,
        question_id,
        question_text,
-       grammar,
-       middle,
-       upper,
+       CASE
+           WHEN grammar THEN 'Grammar'
+           WHEN middle THEN 'Middle'
+           WHEN upper THEN 'Upper'
+           END AS grade_level,
        response_value,
        response_text
 FROM all_respondent_questions
@@ -67,10 +69,12 @@ WITH all_respondent_questions AS
 SELECT respondent_id,
        question_id,
        question_text,
-       grammar,
-       middle,
-       upper,
-       whole_school,
+       CASE
+           WHEN grammar THEN 'Grammar'
+           WHEN middle THEN 'Middle'
+           WHEN upper THEN 'Upper'
+           WHEN whole_school THEN 'Whole School'
+           END AS grade_level,
        response
 FROM all_respondent_questions
          LEFT JOIN
