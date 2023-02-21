@@ -112,6 +112,14 @@ INSERT INTO question_response_mapping (question_id, response_value, response_tex
 VALUES (1, 1, 'Each parent or guardian will submit a separate survey, and we will submit two surveys.'),
        (1, 2, 'All parents and guardians will coordinate responses, and we will submit only one survey.'),
 
+       (2, 1, 'Grammar School only (K-6)'),
+       (2, 2, 'Grammar and Middle School (K-6 and 7-8)'),
+       (2, 3, 'Grammar and Upper School (K-6 and 9-12)'),
+       (2, 4, 'Grammar, Middle, and Upper School (K-6, 7-8, and 9-12)'),
+       (2, 5, 'Middle School only (7-8)'),
+       (2, 6, 'Middle and Upper School (7-8 and 9-12)'),
+       (2, 7, 'Upper School only (9-12)'),
+
        (3, 4, 'Extremely Satisfied'),
        (3, 3, 'Satisfied'),
        (3, 2, 'Somewhat Satisfied'),
