@@ -3,7 +3,8 @@ Simple script to parse Surevy Monkey results into a local database and perform a
 Important changes for each year:
 
 2021-2022:
-* First year of processing data this way
+* First year of processing data this way.
+* Release for the version of code used was saved [here](https://github.com/bdoremus/gvca_survey_analytics/releases/tag/year_final)
 
 2022-2023:
 * Added `Middle` school as an option.  Previously was just `Grammar` and `Upper`.
