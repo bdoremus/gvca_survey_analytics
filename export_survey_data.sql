@@ -164,3 +164,65 @@ FROM rank_questions
      duplicated_respondents USING (respondent_id)
 ORDER BY respondent_id, question_id, grade_level_for_response
 ;
+
+
+-- flattened respondent_rank_questions for 2022 only
+WITH respondents AS
+         (
+             SELECT respondent_id,
+                    tenure = 1              AS new_family,
+                    minority,
+                    any_support,
+                    grammar_avg IS NOT NULL AS grammar_respondent,
+                    NULL                    AS middle_respondent,
+                    upper_avg IS NOT NULL   AS upper_respondent,
+                    overall_avg             AS avg_score
+             FROM respondents
+         ),
+     all_respondent_questions AS
+         (
+             SELECT respondent_id,
+                    question_id,
+                    question_text
+             FROM respondents
+                      CROSS JOIN
+                  question
+             WHERE question_id < 9
+               AND question_id > 2
+         ),
+     rank_questions AS
+         (
+             SELECT respondent_id,
+                    question_id,
+                    question_text,
+                    CASE
+                        WHEN grammar THEN 'Grammar'
+                        WHEN upper THEN 'Upper'
+                        WHEN NOT grammar AND NOT upper AND question_id = 7 THEN '"Grade level" not used for this question'
+                        END AS grade_level_for_response,
+                    response
+             FROM all_respondent_questions
+                      LEFT JOIN
+                  question_rank USING (respondent_id, question_id)
+         )
+SELECT -- respondents
+       respondent_id,
+       new_family,
+       minority,
+       any_support,
+       grammar_respondent,
+       middle_respondent,
+       upper_respondent,
+       avg_score,
+
+       -- questions
+       question_id,
+       question_text,
+       grade_level_for_response,
+       response
+FROM rank_questions
+         JOIN
+     respondents USING (respondent_id)
+WHERE question_id = 7
+ORDER BY respondent_id, question_id, grade_level_for_response
+;
