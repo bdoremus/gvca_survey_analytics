@@ -167,7 +167,7 @@ ORDER BY respondent_id, question_id, grade_level_for_response
 
 
 -- flattened respondent_rank_questions for 2022 only
-WITH respondents AS
+WITH respondents_expanded AS
          (
              SELECT respondent_id,
                     tenure = 1              AS new_family,
@@ -177,16 +177,16 @@ WITH respondents AS
                     NULL                    AS middle_respondent,
                     upper_avg IS NOT NULL   AS upper_respondent,
                     overall_avg             AS avg_score
-             FROM respondents
+             FROM gvca_survey.sac_survey_2022.respondents
          ),
      all_respondent_questions AS
          (
              SELECT respondent_id,
                     question_id,
                     question_text
-             FROM respondents
+             FROM respondents_expanded
                       CROSS JOIN
-                  question
+                  sac_survey_2022.question
              WHERE question_id < 9
                AND question_id > 2
          ),
@@ -203,7 +203,7 @@ WITH respondents AS
                     response
              FROM all_respondent_questions
                       LEFT JOIN
-                  question_rank USING (respondent_id, question_id)
+                  sac_survey_2022.question_rank USING (respondent_id, question_id)
          )
 SELECT -- respondents
        respondent_id,
@@ -222,7 +222,6 @@ SELECT -- respondents
        response
 FROM rank_questions
          JOIN
-     respondents USING (respondent_id)
-WHERE question_id = 7
+     respondents_expanded USING (respondent_id)
 ORDER BY respondent_id, question_id, grade_level_for_response
 ;
