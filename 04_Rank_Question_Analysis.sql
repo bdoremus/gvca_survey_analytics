@@ -19,7 +19,7 @@ WITH question_totals AS
                     count(0) FILTER ( WHERE tenure > 1)::numeric                          as not_first_year_family_total,
                     count(0) FILTER ( WHERE tenure <= 3)::numeric                         as third_or_less_year_family_total,
                     count(0) FILTER ( WHERE tenure > 3)::numeric                          as more_than_third_year_family_total
-             FROM question_rank
+             FROM question_rank_
                       LEFT JOIN
                   respondents using (respondent_id)
              GROUP BY question_id

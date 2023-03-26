@@ -1,19 +1,9 @@
 import pandas as pd
 from sqlalchemy import create_engine
-from dotenv import dotenv_values
 
 env_vars = dotenv_values()
 DATABASE_SCHEMA = env_vars.get('DATABASE_SCHEMA')
 DATABASE_CONNECTION_STRING = env_vars.get('DATABASE_CONNECTION_STRING')
-
-
-def check_env_vars():
-    assert DATABASE_SCHEMA, ('The env var DATABASE_SCHEMA was not found. '
-                             "This should be the schema name into which we're writing the survey results. "
-                             'Unless you know of a reason otherwise, it should be "sac_survey_2022"')
-    assert DATABASE_CONNECTION_STRING, ('The env var DATABASE_CONNECTION_STRING was not found.'
-                                        'This should be the full SQLAlchemy connection string, like: '
-                                        'postgresql://username:password@hostname:port/database')
 
 
 def main():
