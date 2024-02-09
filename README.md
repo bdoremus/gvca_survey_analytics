@@ -1,4 +1,4 @@
-Simple script to parse Surevy Monkey results into a local database and perform analytics.
+Simple script to parse Survey Monkey results into a local database and perform analytics.
 
 ## HOW TO
 1. Export the results from Survey Monkey.  The following export choices make it the easiest:
