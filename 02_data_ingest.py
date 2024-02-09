@@ -322,9 +322,9 @@ def main():
 
 def populate_respondents(conn, questions, row):
     # Create the respondent, including demographic information
-    grammar_rank_questions = [convert_to_int(row[i]) for i, q in questions.items() if q['question context'] == 'Grammar School' and row[i]]
-    middle_rank_questions = [convert_to_int(row[i]) for i, q in questions.items() if q['question context'] == 'Middle School' and row[i]]
-    high_rank_questions = [convert_to_int(row[i]) for i, q in questions.items() if q['question context'] == 'High School' and row[i]]
+    grammar_rank_questions = [convert_to_int(row[i]) for i, q in questions.items() if q['question context'] == 'Grammar School' and row[i] and q['question type'] == 'rank']
+    middle_rank_questions = [convert_to_int(row[i]) for i, q in questions.items() if q['question context'] == 'Middle School' and row[i] and q['question type'] == 'rank']
+    high_rank_questions = [convert_to_int(row[i]) for i, q in questions.items() if q['question context'] == 'High School' and row[i] and q['question type'] == 'rank']
     all_rank_questions = grammar_rank_questions + middle_rank_questions + high_rank_questions
     add_to_table(
         conn,
