@@ -8,7 +8,7 @@ SELECT respondent_id,
        any_support,
        grammar_avg,
        middle_avg,
-       upper_avg,
+       high_avg,
        overall_avg,
        collector_id,
        collector_description
@@ -42,7 +42,7 @@ SELECT respondent_id,
        CASE
            WHEN grammar THEN 'Grammar'
            WHEN middle THEN 'Middle'
-           WHEN upper THEN 'Upper'
+           WHEN high THEN 'High'
            END AS grade_level,
        response_value,
        response_text
@@ -51,7 +51,7 @@ FROM all_respondent_questions
      question_rank_responses USING (respondent_id, question_id)
          LEFT JOIN
      question_response_mapping USING (question_id, response_value)
-ORDER BY respondent_id, question_id, grammar DESC, middle DESC, upper DESC
+ORDER BY respondent_id, question_id, grammar DESC, middle DESC, high DESC
 ;
 
 -- response_open
@@ -72,14 +72,14 @@ SELECT respondent_id,
        CASE
            WHEN grammar THEN 'Grammar'
            WHEN middle THEN 'Middle'
-           WHEN upper THEN 'Upper'
+           WHEN high THEN 'High'
            WHEN whole_school THEN 'Whole School'
            END AS grade_level,
        response
 FROM all_respondent_questions
          LEFT JOIN
      question_open_responses USING (respondent_id, question_id)
-ORDER BY respondent_id, question_id, grammar DESC, middle DESC, upper DESC, whole_school DESC
+ORDER BY respondent_id, question_id, grammar DESC, middle DESC, high DESC, whole_school DESC
 ;
 
 
@@ -92,7 +92,7 @@ WITH duplicated_respondents AS
                     any_support,
                     grammar_avg IS NOT NULL AS grammar_respondent,
                     middle_avg IS NOT NULL  AS middle_respondent,
-                    upper_avg IS NOT NULL   AS upper_respondent,
+                    high_avg IS NOT NULL   AS high_respondent,
                     overall_avg             AS avg_score,
                     soft_delete
              FROM respondents
@@ -107,7 +107,7 @@ WITH duplicated_respondents AS
                     any_support,
                     grammar_avg IS NOT NULL AS grammar_respondent,
                     middle_avg IS NOT NULL  AS middle_respondent,
-                    upper_avg IS NOT NULL   AS upper_respondent,
+                    high_avg IS NOT NULL   AS high_respondent,
                     overall_avg             AS avg_score,
                     soft_delete
              FROM respondents
@@ -133,7 +133,7 @@ WITH duplicated_respondents AS
                     CASE
                         WHEN grammar THEN 'Grammar'
                         WHEN middle THEN 'Middle'
-                        WHEN upper THEN 'Upper'
+                        WHEN high THEN 'High'
                         END AS grade_level_for_response,
                     response_value,
                     response_text
@@ -150,7 +150,7 @@ SELECT -- respondents
        any_support,
        grammar_respondent,
        middle_respondent,
-       upper_respondent,
+       high_respondent,
        avg_score,
 
        -- questions
