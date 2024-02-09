@@ -1,5 +1,5 @@
 .ipynb_checkpoints
 *.ipynb
 .idea
-artifacts/*
+artifacts/*.png
 .env
