@@ -16,7 +16,8 @@ CREATE TABLE collectors
 INSERT INTO collectors(collector_id, collector_description, collector_created)
 VALUES ('454577449', 'SAC Testing', '01/04/2024 09:29:00 AM'),
        ('454577492', 'Dr Garrow Email', '01/04/2024 09:31:00 AM'),
-       ('454577519', 'Newsletters', '01/04/2024 09:33:00 AM')
+       ('454577519', 'Newsletters', '01/04/2024 09:33:00 AM'),
+       ('454577536', 'Other', '01/04/2024 09:34:00')
 ;
 
 
@@ -34,7 +35,7 @@ CREATE TABLE respondents
     any_support                 BOOLEAN,
     grammar_avg                 FLOAT4,
     middle_avg                  FLOAT4,
-    high_avg                   FLOAT4,
+    high_avg                    FLOAT4,
     overall_avg                 FLOAT4,
     soft_delete                 BOOLEAN DEFAULT FALSE
 );

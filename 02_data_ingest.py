@@ -72,19 +72,10 @@ def fix_questions(conn, questions):
         if questions[i]['question description'] == "Given your children’s education level at the beginning of the year, how satisfied are you with their intellectual growth this year?":
             questions[i]['question description'] = "Given your children's education level at the beginning of the year, how satisfied are you with their intellectual growth this year?"
 
-    # # Typo: childrens' should be children's
-    # for i in [93, 106, 107, 124]:
-    #     if questions[i]['question description'] == "GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How well does the school culture reflect these virtues?":
-    #         questions[i]['question description'] = "GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How well is the school culture reflected by these virtues?"
-
-    # # Typo: childrens' should be children's
-    # for i in [15, 30, 31, 50, 51, 74, 75, 76, 95, 110, 111, 126]:
-    #     if questions[i]['question description'] == "How effective is the communication between your family and your childrens' teachers?":
-    #         questions[i]['question description'] = "How effective is the communication between your family and your children's teachers?"
-
     # Fix question context for open response questions
     # These were weird because the page title was the actual question, and the question was the context.
-    # It made sense visually to the survey users, so I intentionally pushed the pain to the data processing step instead of the end users
+    # It made sense visually to the survey users, so I intentionally pushed the pain to the data processing step
+    #   instead of the end users
     open_response_questions = [[18, 19, 20, 21], [36, 37, 38, 39, 40, 41], [56, 57, 58, 59, 60, 61], [83, 84, 85, 86, 87, 88, 89, 90], [98, 99, 100, 101], [116, 117, 118, 119, 120, 121], [129, 130, 131, 132], ]
     for question_group in open_response_questions:
         for i_order, i in enumerate(question_group):
