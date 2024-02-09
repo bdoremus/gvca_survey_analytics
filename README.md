@@ -19,7 +19,7 @@ Simple script to parse Survey Monkey results into a local database and perform a
 10. Export the database and each table.  Save them to the SAC Gdrive.
 11. Save all other artifacts to the GDrive.
 
-## Important changes for each year:
+## Yearly Changelog:
 
 2021-2022:
 * First year of processing data this way.
