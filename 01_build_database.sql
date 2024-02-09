@@ -1,8 +1,8 @@
-CREATE DATABASE gvca_survey OWNER "ben.doremus";
-SET ROLE "ben.doremus";
+CREATE DATABASE gvca_survey OWNER "bdoremus";
+SET ROLE "bdoremus";
 
-CREATE SCHEMA sac_survey_2023;
-SET SCHEMA 'sac_survey_2023';
+CREATE SCHEMA sac_survey_2024;
+SET SCHEMA 'sac_survey_2024';
 
 
 CREATE TABLE collectors
@@ -14,10 +14,9 @@ CREATE TABLE collectors
 );
 
 INSERT INTO collectors(collector_id, collector_description, collector_created)
-VALUES ('449194212', 'Testing', '1/3/23 20:24'),
-       ('449194285', 'Dr. Garrow''s emails', '1/3/23 20:38'),
-       ('449205805', 'Signage', '1/4/23 12:49'),
-       ('449205862', 'Newsletter', '1/4/23 12:51')
+VALUES ('454577449', 'SAC Testing', '01/04/2024 09:29:00 AM'),
+       ('454577492', 'Dr Garrow Email', '01/04/2024 09:31:00 AM'),
+       ('454577519', 'Newsletters', '01/04/2024 09:33:00 AM')
 ;
 
 
@@ -35,7 +34,7 @@ CREATE TABLE respondents
     any_support                 BOOLEAN,
     grammar_avg                 FLOAT4,
     middle_avg                  FLOAT4,
-    upper_avg                   FLOAT4,
+    high_avg                   FLOAT4,
     overall_avg                 FLOAT4,
     soft_delete                 BOOLEAN DEFAULT FALSE
 );
@@ -53,7 +52,7 @@ INSERT INTO questions (question_id, question_type, question_text, mandatory)
 VALUES (1, 'multiple choice', 'Choose a method of submission.', TRUE),
        (2, 'multiple choice', 'This academic year, in which grades are your children?', TRUE),
        (3, 'rank', 'How satisfied are you with the education that Golden View Classical Academy provided this year?', FALSE),
-       (4, 'rank', 'Given your children''s education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?', FALSE),
+       (4, 'rank', 'Given your children''s education level at the beginning of the year, how satisfied are you with their intellectual growth this year?', FALSE),
        (5, 'rank', 'GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How well is the school culture reflected by these virtues?', FALSE),
        (6, 'rank', 'How satisfied are you with your children''s growth in moral character and civic virtue?', FALSE),
        (7, 'rank', 'How effective is the communication between your family and your children''s teachers?', FALSE),
@@ -75,10 +74,10 @@ CREATE TABLE question_rank_responses
         CONSTRAINT question_rank_responses_question_fk REFERENCES questions (question_id),
     grammar        BOOLEAN NOT NULL,
     middle         BOOLEAN NOT NULL,
-    upper          BOOLEAN NOT NULL,
+    high           BOOLEAN NOT NULL,
     response_value SMALLINT,
     CONSTRAINT question_rank_responses_pk
-        PRIMARY KEY (respondent_id, upper, middle, grammar, question_id)
+        PRIMARY KEY (respondent_id, high, middle, grammar, question_id)
 );
 
 
@@ -90,11 +89,11 @@ CREATE TABLE question_open_responses
         CONSTRAINT question_open_responses_questions_fk REFERENCES questions (question_id),
     grammar       BOOLEAN  NOT NULL,
     middle        BOOLEAN  NOT NULL,
-    upper         BOOLEAN  NOT NULL,
+    high          BOOLEAN  NOT NULL,
     whole_school  BOOLEAN  NOT NULL,
     response      TEXT,
     CONSTRAINT question_open_responses_pk
-        PRIMARY KEY (respondent_id, question_id, grammar, middle, upper, whole_school)
+        PRIMARY KEY (respondent_id, question_id, grammar, middle, high, whole_school)
 );
 
 
@@ -114,11 +113,11 @@ VALUES (1, 1, 'Each parent or guardian will submit a separate survey, and we wil
 
        (2, 1, 'Grammar School only (K-6)'),
        (2, 2, 'Grammar and Middle School (K-6 and 7-8)'),
-       (2, 3, 'Grammar and Upper School (K-6 and 9-12)'),
-       (2, 4, 'Grammar, Middle, and Upper School (K-6, 7-8, and 9-12)'),
+       (2, 3, 'Grammar and High School (K-6 and 9-12)'),
+       (2, 4, 'Grammar, Middle, and High School (K-6, 7-8, and 9-12)'),
        (2, 5, 'Middle School only (7-8)'),
-       (2, 6, 'Middle and Upper School (7-8 and 9-12)'),
-       (2, 7, 'Upper School only (9-12)'),
+       (2, 6, 'Middle and High School (7-8 and 9-12)'),
+       (2, 7, 'High School only (9-12)'),
 
        (3, 4, 'Extremely Satisfied'),
        (3, 3, 'Satisfied'),

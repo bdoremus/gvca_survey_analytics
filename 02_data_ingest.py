@@ -67,23 +67,20 @@ def fix_questions(conn, questions):
     :param questions: dict(int: {'question description': str, 'question context': str})
     :return questions:
     """
-    if questions[9]['question description'] == 'For your children, choose a method of submission.':
-        questions[9]['question description'] = 'Choose a method of submission.'
-
     # Typo with wrong type of apostrophe
     for i in [12, 24, 25, 44, 45, 65, 66, 67, 92, 104, 105, 123]:
-        if questions[i]['question description'] == "Given your children’s education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?":
-            questions[i]['question description'] = "Given your children's education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?"
+        if questions[i]['question description'] == "Given your children’s education level at the beginning of the year, how satisfied are you with their intellectual growth this year?":
+            questions[i]['question description'] = "Given your children's education level at the beginning of the year, how satisfied are you with their intellectual growth this year?"
 
-    # Typo: childrens' should be children's
-    for i in [93, 106, 107, 124]:
-        if questions[i]['question description'] == "GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How well does the school culture reflect these virtues?":
-            questions[i]['question description'] = "GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How well is the school culture reflected by these virtues?"
+    # # Typo: childrens' should be children's
+    # for i in [93, 106, 107, 124]:
+    #     if questions[i]['question description'] == "GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How well does the school culture reflect these virtues?":
+    #         questions[i]['question description'] = "GVCA emphasizes 7 core virtues: Courage, Moderation, Justice, Responsibility, Prudence, Friendship, and Wonder. How well is the school culture reflected by these virtues?"
 
-    # Typo: childrens' should be children's
-    for i in [15, 30, 31, 50, 51, 74, 75, 76, 95, 110, 111, 126]:
-        if questions[i]['question description'] == "How effective is the communication between your family and your childrens' teachers?":
-            questions[i]['question description'] = "How effective is the communication between your family and your children's teachers?"
+    # # Typo: childrens' should be children's
+    # for i in [15, 30, 31, 50, 51, 74, 75, 76, 95, 110, 111, 126]:
+    #     if questions[i]['question description'] == "How effective is the communication between your family and your childrens' teachers?":
+    #         questions[i]['question description'] = "How effective is the communication between your family and your children's teachers?"
 
     # Fix question context for open response questions
     # These were weird because the page title was the actual question, and the question was the context.
@@ -96,8 +93,8 @@ def fix_questions(conn, questions):
                 questions[i]['question context'] = 'Grammar School'
             elif questions[i]['question description'] == 'Responses pertinent to Middle School only':
                 questions[i]['question context'] = 'Middle School'
-            elif questions[i]['question description'] == 'Responses pertinent to Upper School only':
-                questions[i]['question context'] = 'Upper School'
+            elif questions[i]['question description'] == 'Responses pertinent to High School only':
+                questions[i]['question context'] = 'High School'
             elif questions[i]['question description'] == 'Responses generic to the whole school.':
                 questions[i]['question context'] = 'Whole School'
 
@@ -117,7 +114,7 @@ def fix_questions(conn, questions):
             questions[i]['question context'] = "Middle School"
     for i in range(122, 129):
         if questions[i]['question context'] == "Response":
-            questions[i]['question context'] = "Upper School"
+            questions[i]['question context'] = "High School"
 
     # Add additional information to each header
     question_info_from_db = conn.execute(f"""SELECT question_id, question_type, question_text FROM {DATABASE_SCHEMA}.questions;""").fetchall()
@@ -187,7 +184,7 @@ def validate_fixed_questions(questions):
         ),
         (
                 [12, 24, 25, 44, 45, 65, 66, 67, 92, 104, 105, 123],
-                "Given your children's education level at the beginning of of the year, how satisfied are you with their intellectual growth this year?",
+                "Given your children's education level at the beginning of the year, how satisfied are you with their intellectual growth this year?",
                 'question description'
         ),
         (
@@ -237,7 +234,7 @@ def validate_fixed_questions(questions):
         ),
         (
                 [135],
-                "Do you consider yourself or your children part of a racial, ethnic, or cultural minority group?",
+                "Do you consider yourself or any of your children part of a racial, ethnic, or cultural minority group?",
                 'question description'
         ),
         # Question Context checks
@@ -263,7 +260,7 @@ def validate_fixed_questions(questions):
         ),
         (
                 [43, 45, 47, 49, 51, 53, 55, 57, 60, 64, 67, 70, 73, 76, 79, 82, 85, 89, 103, 105, 107, 109, 111, 113, 115, 117, 120, *range(122, 129), 129, 131],
-                "Upper School",
+                "High School",
                 'question context'
         ),
         (
@@ -313,9 +310,6 @@ def main():
         conn.execute(f"SET SCHEMA '{DATABASE_SCHEMA}';")
         logging.info(f'Writing to schema: {DATABASE_SCHEMA}')
 
-        # TODO: DELETE THIS!
-        conn.execute('TRUNCATE respondents CASCADE;')
-
         # each row represents one respondent's answers to every question.
         # Parse each row into separate tables
         for i, row in enumerate(raw_data_reader):
@@ -339,8 +333,8 @@ def populate_respondents(conn, questions, row):
     # Create the respondent, including demographic information
     grammar_rank_questions = [convert_to_int(row[i]) for i, q in questions.items() if q['question context'] == 'Grammar School' and row[i]]
     middle_rank_questions = [convert_to_int(row[i]) for i, q in questions.items() if q['question context'] == 'Middle School' and row[i]]
-    upper_rank_questions = [convert_to_int(row[i]) for i, q in questions.items() if q['question context'] == 'Upper School' and row[i]]
-    all_rank_questions = grammar_rank_questions + middle_rank_questions + upper_rank_questions
+    high_rank_questions = [convert_to_int(row[i]) for i, q in questions.items() if q['question context'] == 'High School' and row[i]]
+    all_rank_questions = grammar_rank_questions + middle_rank_questions + high_rank_questions
     add_to_table(
         conn,
         tablename='respondents',
@@ -358,8 +352,8 @@ def populate_respondents(conn, questions, row):
                      if len(grammar_rank_questions) > 0 else None),
         middle_avg=(sum(middle_rank_questions) / len(middle_rank_questions)
                     if len(middle_rank_questions) > 0 else None),
-        upper_avg=(sum(upper_rank_questions) / len(upper_rank_questions)
-                   if len(upper_rank_questions) > 0 else None),
+        high_avg=(sum(high_rank_questions) / len(high_rank_questions)
+                   if len(high_rank_questions) > 0 else None),
         overall_avg=(sum(all_rank_questions) / len(all_rank_questions)
                      if len(all_rank_questions) > 0 else None),
     )
@@ -379,7 +373,7 @@ def populate_rank_response(conn, question_id, question_text, raw_questions, row)
                 question_id=question_id,
                 grammar=question['question context'] == 'Grammar School',
                 middle=question['question context'] == 'Middle School',
-                upper=question['question context'] == 'Upper School',
+                high=question['question context'] == 'High School',
                 response_value=convert_to_int(response)
             )
 
@@ -398,7 +392,7 @@ def populate_open_response(conn, question_id, question_text, raw_questions, row)
                 question_id=question_id,
                 grammar=question['question context'] == 'Grammar School',
                 middle=question['question context'] == 'Middle School',
-                upper=question['question context'] == 'Upper School',
+                high=question['question context'] == 'High School',
                 whole_school=question['question context'] == 'Whole School',
                 response=response
             )
@@ -439,5 +433,4 @@ def convert_to_int(value):
 
 
 if __name__ == '__main__':
-    # inspect_header()
     main()
