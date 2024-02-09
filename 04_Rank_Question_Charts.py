@@ -158,13 +158,13 @@ def create_grade_summary():
                                            AND middle
                             
                                          UNION ALL
-                                         SELECT 'Upper'                                                                                               AS question_id,
+                                         SELECT 'High'                                                                                               AS question_id,
                                                 ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC / SUM(num_individuals_in_response), 2) AS avg_score
                                          FROM question_rank_responses
                                                   JOIN
                                               respondents USING (respondent_id)
                                          WHERE NOT soft_delete
-                                           AND upper
+                                           AND high
                                      )
                             SELECT CONCAT(question_id, E'\n',
                                           '(', avg_score, ')'
@@ -195,13 +195,13 @@ def create_grade_summary():
                                          GROUP BY response_value
                             
                                          UNION ALL
-                                         SELECT 'Upper' AS question_id,
+                                         SELECT 'High' AS question_id,
                                                 response_value,
                                                 SUM(num_individuals_in_response) AS num_responses
                                          FROM question_rank_responses
                                                   JOIN
                                               respondents USING (respondent_id)
-                                         WHERE NOT soft_delete AND upper
+                                         WHERE NOT soft_delete AND high
                                          GROUP BY response_value
                             
                                          UNION ALL
@@ -313,27 +313,27 @@ def yoy_total_diff():
     query_to_bar_chart(title='',
                        x_axis_label='',
                        x_data_label_query="""
-                            WITH pop_2023 AS
+                            WITH pop_2024 AS
                                      (
                                          SELECT question_id,
                                                 response_value,
                                                 num_individuals_in_response
-                                         FROM gvca_survey.sac_survey_2023.question_rank_responses
+                                         FROM sac_survey_2024.question_rank_responses
                                                   JOIN
-                                              gvca_survey.sac_survey_2023.respondents USING (respondent_id)
+                                              sac_survey_2024.respondents USING (respondent_id)
                                          WHERE NOT soft_delete
                                      ),
                                  distribution AS
                                      (
-                                         SELECT '2023'                                                                                                                         AS year,
-                                                ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC / (SELECT SUM(num_individuals_in_response) FROM pop_2023), 2) AS pct
-                                         FROM pop_2023
+                                         SELECT '2024'                                                                                                                         AS year,
+                                                ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC / (SELECT SUM(num_individuals_in_response) FROM pop_2024), 2) AS pct
+                                         FROM pop_2024
                             
                                          UNION ALL
                             
-                                         SELECT '2022'                                                                                                               AS year,
-                                                ROUND(SUM(response)::NUMERIC / (SELECT COUNT(*) AS num_responses FROM gvca_survey.sac_survey_2022.question_rank), 2) AS pct
-                                         FROM gvca_survey.sac_survey_2022.question_rank
+                                         SELECT '2023'                                                                                                               AS year,
+                                                ROUND(SUM(response)::NUMERIC / (SELECT COUNT(*) AS num_responses FROM sac_survey_2023.question_rank), 2) AS pct
+                                         FROM sac_survey_2023.question_rank
                                      )
                             SELECT CONCAT(year, E'\n',
                                           '(', pct, ')'
@@ -342,30 +342,30 @@ def yoy_total_diff():
                             ORDER BY year
                             """,
                        proportion_query="""
-                            WITH pop_2023 AS
+                            WITH pop_2024 AS
                                      (
                                          SELECT question_id,
                                                 response_value,
                                                 num_individuals_in_response
-                                         FROM gvca_survey.sac_survey_2023.question_rank_responses
+                                         FROM sac_survey_2024.question_rank_responses
                                                   JOIN
-                                              gvca_survey.sac_survey_2023.respondents USING (respondent_id)
+                                              sac_survey_2024.respondents USING (respondent_id)
                                          WHERE NOT soft_delete
                                      ),
                                  distribution AS
                                      (
-                                         SELECT '2023'                                                                                              AS year,
+                                         SELECT '2024'                                                                                              AS year,
                                                 response_value,
-                                                SUM(num_individuals_in_response)::NUMERIC / (SELECT SUM(num_individuals_in_response) FROM pop_2023) AS pct
-                                         FROM pop_2023
+                                                SUM(num_individuals_in_response)::NUMERIC / (SELECT SUM(num_individuals_in_response) FROM pop_2024) AS pct
+                                         FROM pop_2024
                                          GROUP BY response_value
                             
                                          UNION ALL
                             
-                                         SELECT '2022'                                                                                                AS year,
+                                         SELECT '2023'                                                                                                AS year,
                                                 response,
-                                                COUNT(*)::NUMERIC / (SELECT COUNT(*) AS num_responses FROM gvca_survey.sac_survey_2022.question_rank) AS pct
-                                         FROM gvca_survey.sac_survey_2022.question_rank
+                                                COUNT(*)::NUMERIC / (SELECT COUNT(*) AS num_responses FROM sac_survey_2023.question_rank) AS pct
+                                         FROM sac_survey_2023.question_rank
                                          GROUP BY response
                             
                                          ORDER BY response_value
@@ -380,10 +380,10 @@ def yoy_total_diff():
 
 
 def main():
-    # create_question_summary()
-    # create_grade_summary()
-    # q5_student_services()
-    yoy_total_diff()
+    create_question_summary()
+    create_grade_summary()
+    q5_student_services()
+    # yoy_total_diff()
 
 
 if __name__ == '__main__':
