@@ -20,23 +20,6 @@ WHERE responses_by_respondents.respondent_id = respondents.respondent_id
   AND NOT has_rank_response
 ;
 
-
-/*
-How many users answered the survey?
-How many filled out >0 non-mandatory fields?
-How many filled out all fields?
- */
-SELECT COUNT(*) FILTER ( WHERE NOT soft_delete )                             AS max_families,
-       SUM(num_individuals_in_response) FILTER ( WHERE NOT soft_delete ) / 2 AS min_families,
-       COUNT(*) FILTER ( WHERE soft_delete )                                 AS num_responses_with_no_contents
-FROM respondents
-;
-
--- Calculate the "final" completion rate by averaging the max and min families, then dividing by the number of families
-SELECT (358 + 298) / 2. / 408
-;
--- 80.4%
-
 -- Look at those who didn't do any ranked choice, but did do open response.  What were their responses?
 SELECT respondent_id,
        ROUND(EXTRACT(EPOCH FROM end_datetime - start_datetime) / 60, 1) AS minutes_elapsed,
