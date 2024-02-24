@@ -3,3 +3,4 @@
 .idea
 artifacts/*.png
 .env
+.DS_Store
