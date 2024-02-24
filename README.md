@@ -10,7 +10,7 @@ Simple script to parse Survey Monkey results into a local database and perform a
    6. Cells: Actual Answer Text
 2. Set up the python environment using the requirements.txt file
 3. Set up a Postgres database (suggest Postgres.App for Mac users)
-4. Create a .env file in the root of this directory with the env vars required (see the data ingest python file for hints)
+4. Create a .env file in the root of this directory with the env vars required (see utilities.load_env_vars())
 5. Update the Python file with any changes to the survey.  This is harder than it seems, and probably harder than it needs to be.
 6. Execute the files in the order given; some on the database, some python scripts.
 7. Fix any problems in the scripts
