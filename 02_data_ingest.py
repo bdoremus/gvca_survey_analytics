@@ -4,27 +4,9 @@
 import logging
 from csv import reader as csv_reader
 from sqlalchemy import create_engine, text
-from dotenv import dotenv_values
-from pprint import pprint
+from utilities import load_env_vars
 
-env_vars = dotenv_values()
-INPUT_FILEPATH = env_vars.get('INPUT_FILEPATH')
-DATABASE_SCHEMA = env_vars.get('DATABASE_SCHEMA')
-DATABASE_CONNECTION_STRING = env_vars.get('DATABASE_CONNECTION_STRING')
-
-
-def check_env_vars():
-    assert INPUT_FILEPATH, \
-        ('The env var INPUT_FILEPATH was not found. '
-         'This should be the full filepath to the raw survey results csv.')
-    assert DATABASE_SCHEMA, \
-        ('The env var DATABASE_SCHEMA was not found. '
-         "This should be the schema name into which we're writing the survey results. "
-         'Unless you know of a reason otherwise, it should be "sac_survey_2023"')
-    assert DATABASE_CONNECTION_STRING, \
-        ('The env var DATABASE_CONNECTION_STRING was not found.'
-         'This should be the full SQLAlchemy connection string, like: '
-         'postgresql://username:password@hostname:port/database')
+INPUT_FILEPATH, DATABASE_SCHEMA, DATABASE_CONNECTION_STRING = load_env_vars()
 
 
 def inspect_header(conn):
@@ -286,7 +268,6 @@ def main():
 
     :return:
     """
-    check_env_vars()
     eng = create_engine(DATABASE_CONNECTION_STRING)
     with open(INPUT_FILEPATH, 'r') as f_in, eng.connect() as conn:
         raw_data_reader = csv_reader(f_in)
