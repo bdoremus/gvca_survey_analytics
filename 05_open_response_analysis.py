@@ -1,46 +1,74 @@
 import pandas as pd
 from sqlalchemy import create_engine
+from wordcloud import WordCloud, STOPWORDS
 
-env_vars = dotenv_values()
-DATABASE_SCHEMA = env_vars.get('DATABASE_SCHEMA')
-DATABASE_CONNECTION_STRING = env_vars.get('DATABASE_CONNECTION_STRING')
+from utilities import load_env_vars
+
+_, DATABASE_SCHEMA, DATABASE_CONNECTION_STRING = load_env_vars()
 
 
 def main():
-    check_env_vars()
     eng = create_engine(DATABASE_CONNECTION_STRING)
-    manual_categorization(eng)
+    with eng.connect() as conn:
+        conn.execute(f"SET SCHEMA '{DATABASE_SCHEMA}';")
+        build_wordclouds(conn)
 
 
-def wordcloud(eng):
+def build_wordclouds(conn):
+    """
+    Create wordclouds for each open response section.
+    Have separate plots for each grade level, as well as one with all results together.
+    """
+    # Curate a list of stopwords
+    stopwords = set(STOPWORDS)
+    stopwords.update(["GVCA", "School", "Golden", "View", "Academy",
+                      "Child", "Children", "Student", "Students", "Kids",
+                      "Grader", "Grammar", "Middle", "High",
+                      "Year", "Really", "Often", "Don"
+                      ])
 
-    df = pd.read_sql(con=eng,
-                     sql="""
-                        SELECT question_id,
-                               question_text,
-                               sub_question_id,
-                               response,
-                               respondent_id,
-                               tenure,
-                               minority,
-                               grammar_conferences,
-                               upper_conferences,
-                               any_support
-                        FROM sac_survey_2022.question_open_response
-                                 JOIN
-                             sac_survey_2022.question using (question_id)
-                                 JOIN
-                             sac_survey_2022.respondents using (respondent_id)
-                        WHERE lower(response) <> 'n/a'
-                     """)
+    # Separate plots for each grade level (and one for all responses together)
+    for grade_level, subtitle in [(None, 'All Response'),
+                                  ('grammar', 'Grammar'),
+                                  ('middle', 'Middle'),
+                                  ('high', 'High')]:
 
-    # Create word cloud
-    # Don't bother with sentiment analysis ; we already have discrete sentiment data
-    # Create separate word clouds or other analysis for groups of users
-    #  - sentiment groups
-    #  - grammar/upper
-    #  - all questions together vs separated
-    # manual categorizations/tagging
+        # no `grade_level_filter` when looking at all responses
+        grade_level_filter = f'AND {grade_level}' if grade_level else ''
+        df = pd.read_sql(con=conn,
+                         sql=f"""
+                                SELECT question_id,
+                                       question_text,
+                                       response
+                                FROM question_open_responses
+                                         JOIN
+                                     questions USING (question_id)
+                                WHERE response IS NOT NULL
+                                      {grade_level_filter}
+                             """)
+
+        for question_id in df.question_id.unique():
+            # expect one "positive" and one "negative" question
+            text = " ".join(df[df.question_id == question_id].response.tolist())
+            title = df[df.question_id == question_id].question_text.values[0]
+
+            build_wordcloud(text, stopwords, title, subtitle)
+
+
+def build_wordcloud(text, stopwords, title, subtitle):
+    """
+    Generate a word cloud image with a transparent background.
+    Save as a file in the artifacts/ folder.
+    """
+    wordcloud = WordCloud(stopwords=stopwords,
+                          max_words=50,
+                          min_word_length=3,
+                          relative_scaling=1,  # frequency determines word size
+                          scale=4,  # image size
+                          colormap='PuOr',  # semi-close to GVCA colors.  Can also try YlGnBu
+                          background_color=None, mode="RGBA",  # transparent background
+                          ).generate(text)
+    wordcloud.to_file(f"artifacts/{title} - {subtitle}.png")
 
 
 def analysis_of_categories(eng):
@@ -58,15 +86,15 @@ def analysis_of_categories(eng):
         SELECT question_id,
                sub_question_id,
                category,
-               count(*) total,
-               count(*) FILTER ( WHERE sentiment = 'positive' )::numeric / count(*) as pct_positive,
-               count(*) FILTER ( WHERE grammar) as grammar_total,
-               count(*) FILTER ( WHERE grammar and sentiment = 'positive' )::numeric / NULLIF(count(*) FILTER ( WHERE grammar ), 0) as grammar_pct_positive,
-               count(*) FILTER ( WHERE upper ) as upper_total,
-               count(*) FILTER ( WHERE upper and sentiment = 'positive' )::numeric / NULLIF(count(*) FILTER ( WHERE upper ),0) as upper_pct_positive
+               COUNT(*) total,
+               COUNT(*) FILTER ( WHERE sentiment = 'positive' )::NUMERIC / COUNT(*) AS pct_positive,
+               COUNT(*) FILTER ( WHERE grammar) AS grammar_total,
+               COUNT(*) FILTER ( WHERE grammar AND sentiment = 'positive' )::NUMERIC / NULLIF(COUNT(*) FILTER ( WHERE grammar ), 0) AS grammar_pct_positive,
+               COUNT(*) FILTER ( WHERE upper ) AS upper_total,
+               COUNT(*) FILTER ( WHERE upper AND sentiment = 'positive' )::NUMERIC / NULLIF(COUNT(*) FILTER ( WHERE upper ),0) AS upper_pct_positive
         FROM open_response_categories
         GROUP BY question_id, sub_question_id, category
-        HAVING count(*) > 2
+        HAVING COUNT(*) > 2
         ORDER BY question_id, sub_question_id, total DESC, category
         ;
         """
@@ -76,7 +104,7 @@ def analysis_of_categories(eng):
 def manual_categorization(eng):
     _entries = """
         INSERT INTO open_response_categories(question_id, sub_question_id, respondent_id, grammar, upper, category, sentiment)
-        VALUES (null, null, null, null, null, null, null) 
+        VALUES (NULL, NULL, NULL, NULL, NULL, NULL, NULL) 
         """
 
     with eng.connect() as conn:
@@ -97,7 +125,7 @@ def manual_categorization(eng):
     # transgender
     # workload (homework) but NOT reducing the challenge or academic rigor
     # Facebook page is out of control
-        # use it to build community!  Book clubs, etc.
+    # use it to build community!  Book clubs, etc.
     # People don't know about student services
 
 
