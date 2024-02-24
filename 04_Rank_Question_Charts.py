@@ -1,15 +1,19 @@
 import matplotlib.pyplot as plt
 import pandas as pd
-import sqlalchemy.engine
 from sqlalchemy import create_engine
 from sqlalchemy.engine.base import Engine as sqlalchemy_Engine
+
 from utilities import load_env_vars
 
 _, DATABASE_SCHEMA, DATABASE_CONNECTION_STRING = load_env_vars()
 
 
-def query_to_bar_chart(conn: sqlalchemy_Engine, title: str, x_axis_label: str, x_data_label_query: str,
-                       proportion_query: str) -> None:
+def query_to_bar_chart(conn: sqlalchemy_Engine,
+                       title: str,
+                       x_axis_label: str,
+                       x_data_label_query: str,
+                       proportion_query: str
+                       ) -> None:
     """
     Execute two queries and modify results to feed the creation of a stacked bar chart.
     :param conn:
@@ -242,8 +246,35 @@ def create_grade_summary(conn):
     )
 
 
-def question_by_grade_level(conn):
+def create_minority_summary(conn):
+    # TODO: todo
     pass
+
+
+def create_support_summary(conn):
+    # TODO: todo
+    pass
+
+
+def create_first_year_family_summary(conn):
+    # TODO: todo
+    pass
+
+
+def question_by_grade_level(conn):
+    # iterate over each question
+    questions = pd.read_sql_query(
+        sql="""
+            SELECT question_id,
+                   question_text
+            FROM questions
+            WHERE question_type = 'rank'
+            """,
+        con=conn
+    )
+    for (question_id, question_text) in questions.itertuples(index=False, name=None):
+        title = f'{question_id}: {question_text}'
+        # TODO: todo
 
 
 def q5_student_services(conn):
@@ -254,7 +285,7 @@ def q5_student_services(conn):
         x_data_label_query="""
             WITH question_avg_score AS
                  (
-                     SELECT 'Total'                                                                                                 AS question_id,
+                     SELECT 'Total'                                                                                                 AS secton_id,
                             ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC / SUM(num_individuals_in_response), 2) AS avg_score
                      FROM question_rank_responses
                               JOIN
@@ -263,7 +294,7 @@ def q5_student_services(conn):
                        AND question_id = 5
         
                      UNION ALL
-                     SELECT 'Support Services'                                                                                      AS question_id,
+                     SELECT 'Support Services'                                                                                      AS secton_id,
                             ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC / SUM(num_individuals_in_response), 2) AS avg_score
                      FROM question_rank_responses
                               JOIN
@@ -272,11 +303,11 @@ def q5_student_services(conn):
                        AND question_id = 5
                        AND any_support
                  )
-            SELECT CONCAT(question_id, E'\n',
+            SELECT CONCAT(secton_id, E'\n',
                           '(', avg_score, ')'
                        ) AS title
             FROM question_avg_score
-            ORDER BY question_id
+            ORDER BY secton_id
             """,
         proportion_query="""
             WITH question_response_counts AS
