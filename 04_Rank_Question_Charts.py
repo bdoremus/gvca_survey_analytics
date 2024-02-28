@@ -38,7 +38,8 @@ def create_stacked_bar_chart(title: str, x_axis_label: str, x_data_labels: list,
     :param x_axis_label:
     :param title:
     :param x_data_labels:
-    :param proportions: {response_value_1: [q1, q2, q3...], response_value_2: [q1, q2, q3...], ...}
+    :param proportions: {bottom_color_in_each_bar: [col1, col2, col3...],
+                         second_from_bottom_color_in_each_bar: [col1, col2, col3...], ...}
     :return:
     """
     r1 = proportions[proportions.response_value == 1].pct.values.tolist()[0]
@@ -246,22 +247,7 @@ def create_grade_summary(conn):
     )
 
 
-def create_minority_summary(conn):
-    # TODO: todo
-    pass
-
-
-def create_support_summary(conn):
-    # TODO: todo
-    pass
-
-
-def create_first_year_family_summary(conn):
-    # TODO: todo
-    pass
-
-
-def question_by_grade_level(conn):
+def question_demographic_breakouts(conn):
     # iterate over each question
     questions = pd.read_sql_query(
         sql="""
@@ -273,8 +259,190 @@ def question_by_grade_level(conn):
         con=conn
     )
     for (question_id, question_text) in questions.itertuples(index=False, name=None):
-        title = f'{question_id}: {question_text}'
-        # TODO: todo
+        summarized_text = question_text
+        if question_id == 3:
+            summarized_text = 'Satisfaction with education'
+        elif question_id == 4:
+            summarized_text = "Satisfaction with child's intellectual growth"
+        elif question_id == 5:
+            summarized_text = 'How well is the school culture reflected by the virtues?'
+        elif question_id == 6:
+            summarized_text = "Satisfaction with child's growth in moral character and civic virtue"
+        elif question_id == 7:
+            summarized_text = "Communication with teachers"
+        elif question_id == 8:
+            summarized_text = "Communication with school leadership"
+
+        # by_grade_level(conn, question_id, summarized_text)
+        by_minority_summary(conn, question_id, summarized_text)
+        # by_support_summary(conn, question_id, summarized_text)
+        # by_first_year_family_summary(conn, question_id, summarized_text)
+
+
+def by_grade_level(conn, question_id, summarized_text):
+    """
+    Given a question_id, create a chart breaking out each grade into its own column
+    """
+    query_to_bar_chart(
+        conn=conn,
+        title=f'{question_id}: ' + summarized_text,
+        x_axis_label='Grade Level',
+        x_data_label_query=f"""
+            SELECT CASE WHEN grammar THEN 'Grammar'
+                        WHEN middle THEN 'Middle'
+                        WHEN high THEN 'High'
+                        END || 
+                        E'\n(' ||
+                        ROUND(
+                            SUM(response_value * num_individuals_in_response)::NUMERIC /
+                                SUM(num_individuals_in_response),
+                            2) || 
+                        ')' AS title
+            FROM question_rank_responses
+                     JOIN
+                 respondents USING (respondent_id)
+            WHERE question_id = {question_id}
+            GROUP BY grammar, middle, high
+            ORDER BY grammar DESC, middle DESC, high DESC
+                """,
+        proportion_query=f"""
+            WITH expected_values AS
+                     (
+                         SELECT levels.column1          AS level,
+                                levels.column2          AS level_order,
+                                response_values.column1 AS response_value
+                         FROM (VALUES ('Grammar', 1), ('Middle', 2), ('High', 3)) AS levels,
+                              (VALUES (1), (2), (3), (4)) AS response_values
+                     ),
+                 sum_by_grade AS
+                     (
+                         SELECT CASE
+                                    WHEN grammar THEN 'Grammar'
+                                    WHEN middle THEN 'Middle'
+                                    WHEN high THEN 'High'
+                                    END                          AS level,
+                                response_value,
+                                SUM(num_individuals_in_response) AS num_responses
+                         FROM question_rank_responses
+                                  JOIN
+                              respondents USING (respondent_id)
+                         WHERE question_id = {question_id}
+                         GROUP BY level, response_value
+                     ),
+                 fill_in_blanks AS
+                     (
+                         -- If a level doesn't have any responses, fill it in as 0
+                         SELECT level,
+                                level_order,
+                                response_value,
+                                COALESCE(num_responses, 0) AS num_responses
+                         FROM expected_values
+                                  LEFT JOIN
+                              sum_by_grade USING (level, response_value)
+                     ),
+                 sum_w_totals AS
+                     (
+                         SELECT level,
+                                SUM(num_responses) AS total
+                         FROM fill_in_blanks
+                         GROUP BY level
+                     )
+            SELECT response_value,
+                   ARRAY_AGG(num_responses::NUMERIC / total ORDER BY level_order) AS pct
+            FROM fill_in_blanks
+                     JOIN
+                 sum_w_totals USING (level)
+            GROUP BY response_value
+            ;"""
+    )
+
+
+def by_minority_summary(conn, question_id, summarized_text):
+    """
+    Given a question_id, create a chart breaking out each grade into its own column
+    """
+    query_to_bar_chart(
+        conn=conn,
+        title=f'{question_id}: ' + summarized_text,
+        x_axis_label='Grade Level',
+        x_data_label_query="""
+            SELECT CASE WHEN grammar THEN 'Grammar'
+                        WHEN middle THEN 'Middle'
+                        WHEN high THEN 'High'
+                        END || 
+                        E'\n(' ||
+                        ROUND(
+                            SUM(response_value * num_individuals_in_response)::NUMERIC /
+                                SUM(num_individuals_in_response),
+                            2) || 
+                        ')' AS title
+            FROM question_rank_responses
+                     JOIN
+                 respondents USING (respondent_id)
+            WHERE question_id = 4
+            GROUP BY grammar, middle, high
+            ORDER BY grammar DESC, middle DESC, high DESC
+                """,
+        proportion_query=f"""
+            WITH expected_values AS
+                     (
+                         SELECT levels.column1          AS level,
+                                levels.column2          AS level_order,
+                                response_values.column1 AS response_value
+                         FROM (VALUES ('Grammar', 1), ('Middle', 2), ('High', 3)) AS levels,
+                              (VALUES (1), (2), (3), (4)) AS response_values
+                     ),
+                 sum_by_grade AS
+                     (
+                         SELECT CASE
+                                    WHEN grammar THEN 'Grammar'
+                                    WHEN middle THEN 'Middle'
+                                    WHEN high THEN 'High'
+                                    END                          AS level,
+                                response_value,
+                                SUM(num_individuals_in_response) AS num_responses
+                         FROM question_rank_responses
+                                  JOIN
+                              respondents USING (respondent_id)
+                         WHERE question_id = {question_id}
+                         GROUP BY level, response_value
+                     ),
+                 fill_in_blanks AS
+                     (
+                         -- If a level doesn't have any responses, fill it in as 0
+                         SELECT level,
+                                level_order,
+                                response_value,
+                                COALESCE(num_responses, 0) AS num_responses
+                         FROM expected_values
+                                  LEFT JOIN
+                              sum_by_grade USING (level, response_value)
+                     ),
+                 sum_w_totals AS
+                     (
+                         SELECT level,
+                                SUM(num_responses) AS total
+                         FROM fill_in_blanks
+                         GROUP BY level
+                     )
+            SELECT response_value,
+                   ARRAY_AGG(num_responses::NUMERIC / total ORDER BY level_order) AS pct
+            FROM fill_in_blanks
+                     JOIN
+                 sum_w_totals USING (level)
+            GROUP BY response_value
+            ;"""
+    )
+
+
+def by_support_summary(conn, question_id, summarized_text):
+    # TODO: todo
+    pass
+
+
+def by_first_year_family_summary(conn, question_id, summarized_text):
+    # TODO: todo
+    pass
 
 
 def q5_student_services(conn):
@@ -428,10 +596,11 @@ def main():
     with create_engine(DATABASE_CONNECTION_STRING).connect() as conn:
         conn.execute(f"SET SCHEMA '{DATABASE_SCHEMA}'")
 
-        create_question_summary(conn)
-        create_grade_summary(conn)
-        q5_student_services(conn)
+        # create_question_summary(conn)
+        # create_grade_summary(conn)
+        # q5_student_services(conn)
         # yoy_total_diff(conn)
+        question_demographic_breakouts(conn)
 
 
 if __name__ == '__main__':
