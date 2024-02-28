@@ -1,6 +1,6 @@
 .ipynb_checkpoints
 *.ipynb
 .idea
-artifacts/*.png
+artifacts/
 .env
 .DS_Store
