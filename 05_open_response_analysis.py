@@ -68,7 +68,7 @@ def build_wordcloud(text, stopwords, title, subtitle):
                           colormap='PuOr',  # semi-close to GVCA colors.  Can also try YlGnBu
                           background_color=None, mode="RGBA",  # transparent background
                           ).generate(text)
-    wordcloud.to_file(f"artifacts/{title} - {subtitle}.png")
+    wordcloud.to_file(f"artifacts/Open Response/{title} - {subtitle}.png")
 
 
 def analysis_of_categories(eng):
