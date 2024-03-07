@@ -251,7 +251,7 @@ def create_grade_summary(conn):
     )
 
 
-def question_demographic_breakouts(conn):
+def breakout_by_question(conn):
     # iterate over each question
     questions = pd.read_sql_query(
         sql="""
@@ -281,6 +281,7 @@ def question_demographic_breakouts(conn):
         by_support_summary(conn, question_id, summarized_text)
         by_minority_summary(conn, question_id, summarized_text)
         by_first_year_family_summary(conn, question_id, summarized_text)
+        yoy_question_diff(conn, question_id, summarized_text)
 
 
 def by_grade_level(conn, question_id, summarized_text):
@@ -682,72 +683,202 @@ def q5_student_services(conn):
     )
 
 
-def yoy_total_diff(conn):
+def yoy_question_diff(conn, question_id, summarized_text):
+    subfolder = Path('artifacts/yoy_comparison')
+    subfolder.mkdir(parents=True, exist_ok=True)
     query_to_bar_chart(
         conn=conn,
-        title='',
+        title=f'{question_id}: ' + summarized_text,
+        subfolder=subfolder,
         x_axis_label='',
-        x_data_label_query="""
+        x_data_label_query=f"""
             WITH pop_2024 AS
-                 (
-                     SELECT question_id,
-                            response_value,
-                            num_individuals_in_response
-                     FROM sac_survey_2024.question_rank_responses
-                              JOIN
-                          sac_survey_2024.respondents USING (respondent_id)
-                     WHERE NOT soft_delete
-                 ),
+                     (
+                         SELECT question_id,
+                                response_value,
+                                num_individuals_in_response
+                         FROM sac_survey_2024.question_rank_responses
+                                  JOIN
+                              sac_survey_2024.respondents USING (respondent_id)
+                         WHERE NOT soft_delete
+                           AND question_id = {question_id} 
+                     ),
+                 pop_2023 AS
+                     (
+                         SELECT question_id,
+                                response_value,
+                                num_individuals_in_response
+                         FROM sac_survey_2023.question_rank_responses
+                                  JOIN
+                              sac_survey_2023.respondents USING (respondent_id)
+                         WHERE NOT soft_delete
+                           AND question_id = {question_id}
+                     ),
                  distribution AS
-                 (
-                     SELECT '2024'                                                                                                                         AS year,
-                            ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC / (SELECT SUM(num_individuals_in_response) FROM pop_2024), 2) AS pct
-                     FROM pop_2024
-        
-                     UNION ALL
-        
-                     SELECT '2023'                                                                                                               AS year,
-                            ROUND(SUM(response)::NUMERIC / (SELECT COUNT(*) AS num_responses FROM sac_survey_2023.question_rank), 2) AS pct
-                     FROM sac_survey_2023.question_rank
-                 )
-            SELECT CONCAT(year, E'\n',
+                     (
+                         SELECT '2024'                                                            AS yr,
+                                ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC /
+                                      (SELECT SUM(num_individuals_in_response) FROM pop_2024), 2) AS pct
+                         FROM pop_2024
+
+                         UNION ALL
+
+                         SELECT '2023'                                                            AS yr,
+                                ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC /
+                                      (SELECT SUM(num_individuals_in_response) FROM pop_2023), 2) AS pct
+                         FROM pop_2023
+                     )
+            SELECT CONCAT(yr, E'\n',
                           '(', pct, ')'
                        ) AS title
             FROM distribution
-            ORDER BY year
+            ORDER BY yr
+            """,
+        proportion_query=f"""
+            WITH pop_2024 AS
+                     (
+                         SELECT question_id,
+                                response_value,
+                                num_individuals_in_response
+                         FROM sac_survey_2024.question_rank_responses
+                                  JOIN
+                              sac_survey_2024.respondents USING (respondent_id)
+                         WHERE NOT soft_delete
+                           AND question_id = {question_id}
+                     ),
+                 pop_2023 AS
+                     (
+                         SELECT question_id,
+                                response_value,
+                                num_individuals_in_response
+                         FROM sac_survey_2023.question_rank_responses
+                                  JOIN
+                              sac_survey_2023.respondents USING (respondent_id)
+                         WHERE NOT soft_delete
+                           AND question_id = {question_id}
+                     ),
+                 distribution AS
+                     (
+                         SELECT '2024'                                                  AS yr,
+                                response_value,
+                                SUM(num_individuals_in_response)::NUMERIC /
+                                (SELECT SUM(num_individuals_in_response) FROM pop_2024) AS pct
+                         FROM pop_2024
+                         GROUP BY response_value
+
+                         UNION ALL
+
+                         SELECT '2023'                                                  AS yr,
+                                response_value,
+                                SUM(num_individuals_in_response)::NUMERIC /
+                                (SELECT SUM(num_individuals_in_response) FROM pop_2023) AS pct
+                         FROM pop_2023
+                         GROUP BY response_value
+
+                         ORDER BY response_value
+                     )
+            SELECT response_value,
+                   ARRAY_AGG(pct ORDER BY yr)  AS pct,
+                   ARRAY_AGG(yr ORDER BY yr) AS year_order
+            FROM distribution
+            GROUP BY response_value
+            """
+    )
+
+
+def yoy_total_diff(conn):
+    subfolder = Path('artifacts/yoy_comparison')
+    subfolder.mkdir(parents=True, exist_ok=True)
+    query_to_bar_chart(
+        conn=conn,
+        title='YoY total difference',
+        subfolder=subfolder,
+        x_axis_label='',
+        x_data_label_query="""
+            WITH pop_2024 AS
+                     (
+                         SELECT question_id,
+                                response_value,
+                                num_individuals_in_response
+                         FROM sac_survey_2024.question_rank_responses
+                                  JOIN
+                              sac_survey_2024.respondents USING (respondent_id)
+                         WHERE NOT soft_delete
+                     ),
+                 pop_2023 AS
+                     (
+                         SELECT question_id,
+                                response_value,
+                                num_individuals_in_response
+                         FROM sac_survey_2023.question_rank_responses
+                                  JOIN
+                              sac_survey_2023.respondents USING (respondent_id)
+                         WHERE NOT soft_delete
+                     ),
+                 distribution AS
+                     (
+                         SELECT '2024'                                                            AS yr,
+                                ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC /
+                                      (SELECT SUM(num_individuals_in_response) FROM pop_2024), 2) AS pct
+                         FROM pop_2024
+
+                         UNION ALL
+
+                         SELECT '2023'                                                            AS yr,
+                                ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC /
+                                      (SELECT SUM(num_individuals_in_response) FROM pop_2023), 2) AS pct
+                         FROM pop_2023
+                     )
+            SELECT CONCAT(yr, E'\n',
+                          '(', pct, ')'
+                       ) AS title
+            FROM distribution
+            ORDER BY yr
             """,
         proportion_query="""
             WITH pop_2024 AS
-                 (
-                     SELECT question_id,
-                            response_value,
-                            num_individuals_in_response
-                     FROM sac_survey_2024.question_rank_responses
-                              JOIN
-                          sac_survey_2024.respondents USING (respondent_id)
-                     WHERE NOT soft_delete
-                 ),
+                     (
+                         SELECT question_id,
+                                response_value,
+                                num_individuals_in_response
+                         FROM sac_survey_2024.question_rank_responses
+                                  JOIN
+                              sac_survey_2024.respondents USING (respondent_id)
+                         WHERE NOT soft_delete
+                     ),
+                 pop_2023 AS
+                     (
+                         SELECT question_id,
+                                response_value,
+                                num_individuals_in_response
+                         FROM sac_survey_2023.question_rank_responses
+                                  JOIN
+                              sac_survey_2023.respondents USING (respondent_id)
+                         WHERE NOT soft_delete
+                     ),
                  distribution AS
-                 (
-                     SELECT '2024'                                                                                              AS year,
-                            response_value,
-                            SUM(num_individuals_in_response)::NUMERIC / (SELECT SUM(num_individuals_in_response) FROM pop_2024) AS pct
-                     FROM pop_2024
-                     GROUP BY response_value
-        
-                     UNION ALL
-        
-                     SELECT '2023'                                                                                                AS year,
-                            response,
-                            COUNT(*)::NUMERIC / (SELECT COUNT(*) AS num_responses FROM sac_survey_2023.question_rank) AS pct
-                     FROM sac_survey_2023.question_rank
-                     GROUP BY response
-        
-                     ORDER BY response_value
-                 )
+                     (
+                         SELECT '2024'                                                  AS yr,
+                                response_value,
+                                SUM(num_individuals_in_response)::NUMERIC /
+                                (SELECT SUM(num_individuals_in_response) FROM pop_2024) AS pct
+                         FROM pop_2024
+                         GROUP BY response_value
+
+                         UNION ALL
+
+                         SELECT '2023'                                                  AS yr,
+                                response_value,
+                                SUM(num_individuals_in_response)::NUMERIC /
+                                (SELECT SUM(num_individuals_in_response) FROM pop_2023) AS pct
+                         FROM pop_2023
+                         GROUP BY response_value
+
+                         ORDER BY response_value
+                     )
             SELECT response_value,
-                   ARRAY_AGG(pct ORDER BY year) AS pct,
-                   ARRAY_AGG(year ORDER BY year) AS year_order
+                   ARRAY_AGG(pct ORDER BY yr)  AS pct,
+                   ARRAY_AGG(yr ORDER BY yr) AS year_order
             FROM distribution
             GROUP BY response_value
             """
@@ -761,8 +892,8 @@ def main():
         create_question_summary(conn)
         create_grade_summary(conn)
         q5_student_services(conn)
-        # yoy_total_diff(conn)
-        question_demographic_breakouts(conn)
+        breakout_by_question(conn)
+        yoy_total_diff(conn)
 
 
 if __name__ == '__main__':
