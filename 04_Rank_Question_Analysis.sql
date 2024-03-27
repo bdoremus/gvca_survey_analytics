@@ -76,3 +76,10 @@ FROM response_totals
 ORDER BY question_id, response_value
 ;
 
+
+-- What % of responses are Satisfied or Very Satisfied?
+SELECT round(100. * sum(response_value * num_individuals_in_response) FILTER ( WHERE response_value >= 3 ) / sum(response_value * num_individuals_in_response), 1)
+FROM sac_survey_2023.respondents
+JOIN
+    sac_survey_2023.question_rank_responses using(respondent_id)
+;
