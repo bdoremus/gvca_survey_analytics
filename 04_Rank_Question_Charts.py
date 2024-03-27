@@ -147,16 +147,9 @@ def create_grade_summary(conn):
         x_data_label_query="""
             WITH question_avg_score AS
                  (
-                     SELECT 'Total'                                                                                                 AS question_id,
-                            ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC / SUM(num_individuals_in_response), 2) AS avg_score
-                     FROM question_rank_responses
-                              JOIN
-                          respondents USING (respondent_id)
-                     WHERE NOT soft_delete
-        
-                     UNION ALL
                      SELECT 'Grammar'                                                                                               AS question_id,
-                            ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC / SUM(num_individuals_in_response), 2) AS avg_score
+                            ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC / SUM(num_individuals_in_response), 2) AS avg_score,
+                            1                                                                                                       AS order_id
                      FROM question_rank_responses
                               JOIN
                           respondents USING (respondent_id)
@@ -165,7 +158,8 @@ def create_grade_summary(conn):
         
                      UNION ALL
                      SELECT 'Middle'                                                                                               AS question_id,
-                            ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC / SUM(num_individuals_in_response), 2) AS avg_score
+                            ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC / SUM(num_individuals_in_response), 2) AS avg_score,
+                            2                                                                                                       AS order_id
                      FROM question_rank_responses
                               JOIN
                           respondents USING (respondent_id)
@@ -174,25 +168,36 @@ def create_grade_summary(conn):
         
                      UNION ALL
                      SELECT 'High'                                                                                               AS question_id,
-                            ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC / SUM(num_individuals_in_response), 2) AS avg_score
+                            ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC / SUM(num_individuals_in_response), 2) AS avg_score,
+                            3                                                                                                       AS order_id
                      FROM question_rank_responses
                               JOIN
                           respondents USING (respondent_id)
                      WHERE NOT soft_delete
                        AND high
+       
+                     UNION ALL
+                     SELECT 'Total'                                                                                                 AS question_id,
+                            ROUND(SUM(response_value * num_individuals_in_response)::NUMERIC / SUM(num_individuals_in_response), 2) AS avg_score,
+                            4                                                                                                       AS order_id
+                     FROM question_rank_responses
+                              JOIN
+                          respondents USING (respondent_id)
+                     WHERE NOT soft_delete
                  )
             SELECT CONCAT(question_id, E'\n',
                           '(', avg_score, ')'
                        ) AS title
             FROM question_avg_score
-            ORDER BY question_id = 'Total', question_id
+            ORDER BY order_id
             """,
         proportion_query="""
-            WITH question_response_counts AS
+            WITH level_response_counts AS
                  (
-                     SELECT 'Grammar' AS question_id,
+                     SELECT 'Grammar'                        AS level_name,
                             response_value,
-                            SUM(num_individuals_in_response) AS num_responses
+                            SUM(num_individuals_in_response) AS num_responses,
+                            1                                AS level_order
                      FROM question_rank_responses
                               JOIN
                           respondents USING (respondent_id)
@@ -200,9 +205,10 @@ def create_grade_summary(conn):
                      GROUP BY response_value
         
                      UNION ALL
-                     SELECT 'Middle' AS question_id,
+                     SELECT 'Middle'                         AS level_name,
                             response_value,
-                            SUM(num_individuals_in_response) AS num_responses
+                            SUM(num_individuals_in_response) AS num_responses,
+                            2                                AS level_order
                      FROM question_rank_responses
                               JOIN
                           respondents USING (respondent_id)
@@ -210,9 +216,10 @@ def create_grade_summary(conn):
                      GROUP BY response_value
         
                      UNION ALL
-                     SELECT 'High' AS question_id,
+                     SELECT 'High'                           AS level_name,
                             response_value,
-                            SUM(num_individuals_in_response) AS num_responses
+                            SUM(num_individuals_in_response) AS num_responses,
+                            3                                AS level_order
                      FROM question_rank_responses
                               JOIN
                           respondents USING (respondent_id)
@@ -221,30 +228,31 @@ def create_grade_summary(conn):
         
                      UNION ALL
         
-                     SELECT 'Total'                          AS question_id,
+                     SELECT 'Total'                          AS level_name,
                             response_value,
-                            SUM(num_individuals_in_response) AS num_responses
+                            SUM(num_individuals_in_response) AS num_responses,
+                            4                                AS level_order
                      FROM question_rank_responses
                               JOIN
                           respondents USING (respondent_id)
                      WHERE NOT soft_delete
                      GROUP BY response_value
                  ),
-             question_totals AS
+             level_totals AS
                  (
-                     SELECT question_id,
+                     SELECT level_name,
                             SUM(num_responses) AS total
-                     FROM question_response_counts
-                     GROUP BY question_id
+                     FROM level_response_counts
+                     GROUP BY level_name
                  )
-            SELECT response_value,
+        SELECT response_value,
                ARRAY_AGG(num_responses::NUMERIC / total 
-                         ORDER BY question_id = 'Total', question_id) AS pct,
-               ARRAY_AGG(question_id
-                         ORDER BY question_id = 'Total', question_id) AS question_order
-        FROM question_response_counts
+                         ORDER BY level_order) AS pct,
+               ARRAY_AGG(level_name
+                         ORDER BY level_order) AS level_names
+        FROM level_response_counts
                  JOIN
-             question_totals USING (question_id)
+             level_totals USING (level_name)
         GROUP BY response_value
         ;
         """
@@ -889,11 +897,11 @@ def main():
     with create_engine(DATABASE_CONNECTION_STRING).connect() as conn:
         conn.execute(f"SET SCHEMA '{DATABASE_SCHEMA}'")
 
-        create_question_summary(conn)
+        # create_question_summary(conn)
         create_grade_summary(conn)
-        q5_student_services(conn)
-        breakout_by_question(conn)
-        yoy_total_diff(conn)
+        # q5_student_services(conn)
+        # breakout_by_question(conn)
+        # yoy_total_diff(conn)
 
 
 if __name__ == '__main__':
