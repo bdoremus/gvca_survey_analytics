@@ -78,8 +78,34 @@ ORDER BY question_id, response_value
 
 
 -- What % of responses are Satisfied or Very Satisfied?
-SELECT round(100. * sum(response_value * num_individuals_in_response) FILTER ( WHERE response_value >= 3 ) / sum(response_value * num_individuals_in_response), 1)
-FROM sac_survey_2023.respondents
-JOIN
-    sac_survey_2023.question_rank_responses using(respondent_id)
+SELECT ROUND(100. * SUM(num_individuals_in_response) FILTER ( WHERE response_value >= 3 ) /
+             SUM(num_individuals_in_response), 1)
+FROM respondents
+         JOIN
+     question_rank_responses USING (respondent_id)
+;
+
+-- What's the breakdown of responses?
+WITH responses AS
+         (
+             SELECT response_value,
+                    SUM(num_individuals_in_response) AS num_responses
+             FROM question_rank_responses
+                      JOIN
+                  respondents USING (respondent_id)
+             WHERE NOT soft_delete
+             GROUP BY response_value
+             ORDER BY response_value DESC
+         ),
+     totals AS
+         (
+             SELECT SUM(num_responses) AS total
+             FROM responses
+         )
+SELECT response_value,
+       num_responses,
+       total,
+       ROUND(100. * num_responses / total, 1) AS pct
+FROM responses,
+     totals
 ;
