@@ -100,6 +100,8 @@ SELECT ROUND(100. * SUM(family.num_individuals_in_response) FILTER ( WHERE q.res
 FROM respondents AS family
          JOIN
      question_rank_responses AS q USING (respondent_id)
+WHERE NOT soft_delete
+  AND overall_avg IS NOT NULL
 ;
 
 -- What % of parents/guardians had an average score of 3 or above, broken out by grammar/middle/high.
@@ -163,7 +165,7 @@ WITH responses AS
          )
 SELECT response_value,
        num_responses,
-       total,
+       total                                  AS out_of,
        ROUND(100. * num_responses / total, 1) AS pct
 FROM responses,
      totals
