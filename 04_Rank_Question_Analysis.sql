@@ -77,12 +77,71 @@ ORDER BY question_id, response_value
 ;
 
 
--- What % of responses are Satisfied or Very Satisfied?
-SELECT ROUND(100. * SUM(num_individuals_in_response) FILTER ( WHERE response_value >= 3 ) /
-             SUM(num_individuals_in_response), 1)
-FROM respondents
+-- What % of responses are Satisfied or Very Satisfied (weighted by # individuals)?
+SELECT ROUND(100. * SUM(family.num_individuals_in_response) FILTER ( WHERE q.response_value >= 3 ) /
+             SUM(family.num_individuals_in_response), 1)                           AS overall,
+
+       ROUND(100. * SUM(family.num_individuals_in_response) FILTER ( WHERE q.response_value >= 3 AND q.grammar) /
+             SUM(family.num_individuals_in_response) FILTER ( WHERE q.grammar), 1) AS grammar,
+
+       ROUND(100. * SUM(family.num_individuals_in_response) FILTER ( WHERE q.response_value >= 3 AND q.middle) /
+             SUM(family.num_individuals_in_response) FILTER ( WHERE q.middle ), 1) AS middle,
+
+       ROUND(100. * SUM(family.num_individuals_in_response) FILTER ( WHERE q.response_value >= 3 AND q.high) /
+             SUM(family.num_individuals_in_response) FILTER ( WHERE q.high ), 1)   AS high,
+
+       ROUND(100. * (
+                       SUM(family.num_individuals_in_response) FILTER ( WHERE q.response_value >= 3 AND q.middle) +
+                       SUM(family.num_individuals_in_response) FILTER ( WHERE q.response_value >= 3 AND q.high)
+           ) / (
+                             SUM(family.num_individuals_in_response) FILTER ( WHERE q.middle) +
+                             SUM(family.num_individuals_in_response) FILTER ( WHERE q.high)
+                 ), 1)                                                             AS upper
+FROM respondents AS family
          JOIN
-     question_rank_responses USING (respondent_id)
+     question_rank_responses AS q USING (respondent_id)
+;
+
+-- What % of parents/guardians had an average score of 3 or above, broken out by grammar/middle/high.
+WITH respondents_grade_level_combined AS
+         (
+             SELECT num_individuals_in_response,
+                    grammar_avg,
+                    middle_avg,
+                    high_avg,
+                    (middle_avg + high_avg) / 2 AS upper_avg,
+                    overall_avg
+             FROM respondents
+             WHERE NOT soft_delete
+               AND overall_avg IS NOT NULL
+         ),
+     satisfaction_per_group AS
+         (
+             SELECT SUM(num_individuals_in_response) FILTER ( WHERE grammar_avg >= 3)::NUMERIC
+                        / SUM(num_individuals_in_response) FILTER ( WHERE grammar_avg IS NOT NULL) AS pct_grammar_gte_3,
+
+                    SUM(num_individuals_in_response) FILTER ( WHERE middle_avg >= 3)::NUMERIC
+                        /
+                    SUM(num_individuals_in_response) FILTER ( WHERE middle_avg IS NOT NULL)        AS pct_middle_gte_3,
+
+                    SUM(num_individuals_in_response) FILTER ( WHERE high_avg >= 3)::NUMERIC
+                        /
+                    SUM(num_individuals_in_response) FILTER ( WHERE high_avg IS NOT NULL)          AS pct_high_gte_3,
+
+                    SUM(num_individuals_in_response) FILTER ( WHERE upper_avg >= 3)::NUMERIC
+                        / SUM(num_individuals_in_response)
+                          FILTER ( WHERE upper_avg IS NOT NULL)                                    AS pct_upper_gte_3,
+
+                    SUM(num_individuals_in_response) FILTER ( WHERE overall_avg >= 3)::NUMERIC
+                        / SUM(num_individuals_in_response) FILTER ( WHERE overall_avg IS NOT NULL) AS pct_overall_gte_3
+             FROM respondents_grade_level_combined
+         )
+SELECT ROUND(100 * pct_grammar_gte_3, 1) AS pct_grammar_gte_3,
+       ROUND(100 * pct_middle_gte_3, 1)  AS pct_middle_gte_3,
+       ROUND(100 * pct_high_gte_3, 1)    AS pct_high_gte_3,
+       ROUND(100 * pct_upper_gte_3, 1)   AS pct_upper_gte_3,
+       ROUND(100 * pct_overall_gte_3, 1) AS pct_overall_gte_
+FROM satisfaction_per_group
 ;
 
 -- What's the breakdown of responses?
