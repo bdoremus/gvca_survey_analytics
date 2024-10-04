@@ -4,75 +4,75 @@
 WITH question_totals AS
          (
              SELECT question_id,
-                    count(0)::numeric                                                     as question_total,
-                    count(0) FILTER ( WHERE grammar )::numeric                            as grammar_total,
-                    count(0) FILTER ( WHERE high )::numeric                              as high_total,
-                    count(0) FILTER ( WHERE minority )::numeric                           as minority_total,
-                    count(0) FILTER ( WHERE not minority )::numeric                       as not_minority_total,
-                    count(0) FILTER ( WHERE any_support )::numeric                        as recieves_support_total,
-                    count(0) FILTER ( WHERE not any_support )::numeric                    as no_support_total,
-                    count(0) FILTER ( WHERE tenure = 1)::numeric                          as first_year_family_total,
-                    count(0) FILTER ( WHERE tenure > 1)::numeric                          as not_first_year_family_total,
-                    count(0) FILTER ( WHERE tenure <= 3)::numeric                         as third_or_less_year_family_total,
-                    count(0) FILTER ( WHERE tenure > 3)::numeric                          as more_than_third_year_family_total
+                    COUNT(0)::NUMERIC                                  AS question_total,
+                    COUNT(0) FILTER ( WHERE grammar )::NUMERIC         AS grammar_total,
+                    COUNT(0) FILTER ( WHERE high )::NUMERIC            AS high_total,
+                    COUNT(0) FILTER ( WHERE minority )::NUMERIC        AS minority_total,
+                    COUNT(0) FILTER ( WHERE NOT minority )::NUMERIC    AS not_minority_total,
+                    COUNT(0) FILTER ( WHERE any_support )::NUMERIC     AS recieves_support_total,
+                    COUNT(0) FILTER ( WHERE NOT any_support )::NUMERIC AS no_support_total,
+                    COUNT(0) FILTER ( WHERE tenure = 1)::NUMERIC       AS first_year_family_total,
+                    COUNT(0) FILTER ( WHERE tenure > 1)::NUMERIC       AS not_first_year_family_total,
+                    COUNT(0) FILTER ( WHERE tenure <= 3)::NUMERIC      AS third_or_less_year_family_total,
+                    COUNT(0) FILTER ( WHERE tenure > 3)::NUMERIC       AS more_than_third_year_family_total
              FROM question_rank_responses
                       LEFT JOIN
-                  respondents using (respondent_id)
+                  respondents USING (respondent_id)
              GROUP BY question_id
          ),
      response_totals AS
          (
              SELECT question_id,
                     response_value,
-                    count(0)                                                              as total,
-                    count(0) FILTER ( WHERE grammar )                                     as grammar,
-                    count(0) FILTER ( WHERE high )                                       as high,
-                    count(0) FILTER ( WHERE minority )                                    as minority,
-                    count(0) FILTER ( WHERE not minority )                                as not_minority,
-                    count(0) FILTER ( WHERE any_support )                                 as recieves_support,
-                    count(0) FILTER ( WHERE not any_support )                             as no_support,
-                    count(0) FILTER ( WHERE tenure = 1)::numeric                          as first_year_family,
-                    count(0) FILTER ( WHERE tenure > 1)::numeric                          as not_first_year_family,
-                    count(0) FILTER ( WHERE tenure <= 3)::numeric                         as third_year_family,
-                    count(0) FILTER ( WHERE tenure > 3)::numeric                          as not_third_year_family
+                    COUNT(0)                                      AS total,
+                    COUNT(0) FILTER ( WHERE grammar )             AS grammar,
+                    COUNT(0) FILTER ( WHERE high )                AS high,
+                    COUNT(0) FILTER ( WHERE minority )            AS minority,
+                    COUNT(0) FILTER ( WHERE NOT minority )        AS not_minority,
+                    COUNT(0) FILTER ( WHERE any_support )         AS recieves_support,
+                    COUNT(0) FILTER ( WHERE NOT any_support )     AS no_support,
+                    COUNT(0) FILTER ( WHERE tenure = 1)::NUMERIC  AS first_year_family,
+                    COUNT(0) FILTER ( WHERE tenure > 1)::NUMERIC  AS not_first_year_family,
+                    COUNT(0) FILTER ( WHERE tenure <= 3)::NUMERIC AS third_year_family,
+                    COUNT(0) FILTER ( WHERE tenure > 3)::NUMERIC  AS not_third_year_family
              FROM question_rank_responses
                       LEFT JOIN
-                  respondents using (respondent_id)
+                  respondents USING (respondent_id)
              GROUP BY question_id, response_value
          )
 SELECT question_id,
        question_text,
        response_value,
        response_text,
-       nullif(total, 0)                                                           as total,
-       total / nullif(question_total, 0)                                          as total_pct,
-       nullif(grammar, 0)                                                         as grammar,
-       grammar / nullif(grammar_total, 0)                                         as grammar_pct,
-       nullif(high, 0)                                                           as high,
-       high / nullif(high_total, 0)                                             as high_pct,
-       nullif(minority, 0)                                                        as minority,
-       minority / nullif(minority_total, 0)                                       as minority_pct,
-       nullif(not_minority, 0)                                                    as not_minority,
-       not_minority / nullif(not_minority_total, 0)                               as not_minority_pct,
-       nullif(recieves_support, 0)                                                as recieves_support,
-       recieves_support / nullif(recieves_support_total, 0)                       as recieves_support_pct,
-       nullif(no_support, 0)                                                      as no_support,
-       no_support / nullif(no_support_total, 0)                                   as no_support_pct,
-       nullif(first_year_family, 0)                                               as first_year_family,
-       first_year_family / nullif(first_year_family_total, 0)                     as first_year_family_pct,
-       nullif(not_first_year_family, 0)                                           as not_first_year_family,
-       not_first_year_family / nullif(not_first_year_family_total, 0)             as not_first_year_family_pct,
-       nullif(third_year_family, 0)                                               as third_year_family,
-       third_year_family / nullif(third_or_less_year_family_total, 0)             as third_or_less_year_family_pct,
-       nullif(not_third_year_family, 0)                                           as not_third_year_family,
-       not_third_year_family / nullif(more_than_third_year_family_total, 0)       as more_than_third_year_family_pct
+       NULLIF(total, 0)                                                     AS total,
+       total / NULLIF(question_total, 0)                                    AS total_pct,
+       NULLIF(grammar, 0)                                                   AS grammar,
+       grammar / NULLIF(grammar_total, 0)                                   AS grammar_pct,
+       NULLIF(high, 0)                                                      AS high,
+       high / NULLIF(high_total, 0)                                         AS high_pct,
+       NULLIF(minority, 0)                                                  AS minority,
+       minority / NULLIF(minority_total, 0)                                 AS minority_pct,
+       NULLIF(not_minority, 0)                                              AS not_minority,
+       not_minority / NULLIF(not_minority_total, 0)                         AS not_minority_pct,
+       NULLIF(recieves_support, 0)                                          AS recieves_support,
+       recieves_support / NULLIF(recieves_support_total, 0)                 AS recieves_support_pct,
+       NULLIF(no_support, 0)                                                AS no_support,
+       no_support / NULLIF(no_support_total, 0)                             AS no_support_pct,
+       NULLIF(first_year_family, 0)                                         AS first_year_family,
+       first_year_family / NULLIF(first_year_family_total, 0)               AS first_year_family_pct,
+       NULLIF(not_first_year_family, 0)                                     AS not_first_year_family,
+       not_first_year_family / NULLIF(not_first_year_family_total, 0)       AS not_first_year_family_pct,
+       NULLIF(third_year_family, 0)                                         AS third_year_family,
+       third_year_family / NULLIF(third_or_less_year_family_total, 0)       AS third_or_less_year_family_pct,
+       NULLIF(not_third_year_family, 0)                                     AS not_third_year_family,
+       not_third_year_family / NULLIF(more_than_third_year_family_total, 0) AS more_than_third_year_family_pct
 FROM response_totals
          INNER JOIN
-     question_totals using (question_id)
+     question_totals USING (question_id)
          LEFT JOIN
-     questions using (question_id)
+     questions USING (question_id)
          LEFT JOIN
-     question_response_mapping using (question_id, response_value)
+     question_response_mapping USING (question_id, response_value)
 ORDER BY question_id, response_value
 ;
 
