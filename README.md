@@ -15,8 +15,8 @@ Simple script to parse Survey Monkey results into a local database and perform a
 6. Execute the files in the order given; some on the database, some python scripts.
 7. Fix any problems in the scripts
 8. Commit your changes and push them back up to the remote git repository
-9. Create a release for the current year, so we can rerun prior history if needed.
-10. Export the database and each table.  Save them to the SAC Gdrive.
+9. Create a release in Github for the current year, so we can rerun prior history if needed.
+10. Export the database using pg_dump and each table as a csv.  Save them to the SAC Gdrive.
 11. Save all other artifacts to the GDrive.
 
 ## Yearly Changelog:
