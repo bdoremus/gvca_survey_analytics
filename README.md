@@ -35,3 +35,6 @@ Simple script to parse Survey Monkey results into a local database and perform a
 2023-2024:
 * References to "Upper" school have been replaced with "High" school.
 * Fixed some typos in the questions
+
+2024-2025
+* Add new way to calculate response rate.  Decision to be made about which to use.
